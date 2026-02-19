@@ -1,4 +1,4 @@
-# React + TypeScript + Vite
+﻿# React + TypeScript + Vite
 
 ## Requirements
 
@@ -14,7 +14,7 @@ npm run dev
 
 ## Routing
 
-TanStack Router with file-based routes in [src/routes](src/routes). The route tree is auto-generated — do not edit `src/routeTree.gen.ts`.
+React Router DOM with object-based route config in [src/routes/routes.tsx](src/routes/routes.tsx).
 
 ## Styling
 
