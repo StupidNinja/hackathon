@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "vercel:link": "npx vercel link",
-    "vercel:pull:dev": "npx vercel env pull .env.local",
+    "vercel:pull:dev": "npx vercel env pull .env.vercel.local --environment=development",
     "vercel:dev": "npx vercel dev",
     "vercel:build": "npx vercel build",
     "vercel:deploy:preview": "npx vercel",
