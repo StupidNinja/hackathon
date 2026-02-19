@@ -1,9 +1,9 @@
 import axios from "axios";
-import { env } from "@/common/config/env";
+import { apiConfig } from "@/common/api/config/api.config";
 import { getAuthToken } from "@/common/auth/authStore";
 
 export const request = axios.create({
-  baseURL: env.apiUrl,
+  baseURL: apiConfig.apiUrl,
 });
 
 request.interceptors.request.use((config) => {
