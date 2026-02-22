@@ -27,6 +27,7 @@ export const translations = {
     "common.failedSchools": "Не удалось загрузить школы. Попробуйте снова.",
     "common.noSchoolsFound": "Школы не найдены.",
     "common.selectSchool": "Выберите школу",
+    "common.toggleTheme": "Переключить тему",
     "common.signOut": "Выйти",
     "common.signingOut": "Выход...",
     "notFound.page": "Страница не найдена.",
