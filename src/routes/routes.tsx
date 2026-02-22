@@ -1,17 +1,17 @@
 import { type RouteObject } from "react-router-dom";
 import { AuthGuardLayout } from "@/common/layouts/auth-guard-layout/auth-guard-layout";
+import { DashboardLayout } from "@/common/layouts/dashboard-layout/dashboard-layout";
 import { NotificationsLayout } from "@/common/layouts/notifications-layout";
 import { NonAuthGuardLayout } from "@/common/layouts/non-auth-guard-layout/non-auth-guard-layout";
+import { OnboardingLayout } from "@/common/layouts/onboarding-layout/onboarding-layout";
 import { AuthView } from "@/features/auth/views/auth-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
-
-function NotFoundView() {
-  return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <p className="text-sm text-muted-foreground">Page not found.</p>
-    </div>
-  );
-}
+import { OnboardingEntryView } from "@/features/onboarding/views/onboarding-entry-view";
+import { OnboardingProfileView } from "@/features/onboarding/views/onboarding-profile-view";
+import { OnboardingTeamView } from "@/features/onboarding/views/onboarding-team-view";
+import { EditProfileView } from "@/features/settings/views/edit-profile-view";
+import { EditTeamView } from "@/features/settings/views/edit-team-view";
+import { NotFoundView } from "@/routes/not-found-view";
 
 export const routes: RouteObject[] = [
   {
@@ -34,7 +34,37 @@ export const routes: RouteObject[] = [
         children: [
           {
             index: true,
-            element: <HomeProtectedView />,
+            element: <OnboardingEntryView />,
+          },
+          {
+            element: <OnboardingLayout />,
+            children: [
+              {
+                path: "profile",
+                element: <OnboardingProfileView />,
+              },
+              {
+                path: "team",
+                element: <OnboardingTeamView />,
+              },
+            ],
+          },
+          {
+            element: <DashboardLayout />,
+            children: [
+              {
+                path: "dashboard",
+                element: <HomeProtectedView />,
+              },
+              {
+                path: "settings/profile",
+                element: <EditProfileView />,
+              },
+              {
+                path: "settings/team",
+                element: <EditTeamView />,
+              },
+            ],
           },
         ],
       },

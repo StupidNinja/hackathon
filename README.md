@@ -52,7 +52,7 @@ Notes:
 - `vercel:pull:dev` writes to `.env.vercel.local` to avoid overwriting frontend `.env.local`.
 - Keep only browser-safe keys in `.env.local` (for this app: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
 - Never put secrets like `VERCEL_OIDC_TOKEN` or service-role keys into `VITE_*`.
-- SPA rewrite is configured in `vercel.json` so client-side routes work on refresh.
+- For local development use `npm run dev` (Vite). Use `vercel:dev` only when you need to emulate Vercel runtime behavior.
 - For deploys use:
   - Preview: `npm run vercel:deploy:preview`
   - Production: `npm run vercel:deploy:prod`
