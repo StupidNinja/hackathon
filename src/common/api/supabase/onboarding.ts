@@ -14,6 +14,7 @@ export type ProfileRow = {
   role: AppRole;
   created_at: string;
   updated_at: string;
+  schools: { id: string; name_ru: string } | null;
 };
 
 export type SchoolRow = {
@@ -24,6 +25,11 @@ export type SchoolRow = {
   name_en: string | null;
   is_active: boolean;
   created_at: string;
+};
+
+export type SearchSchoolsInput = {
+  query: string;
+  limit?: number;
 };
 
 export type TeamRow = {
@@ -96,15 +102,19 @@ export type SaveTeamInput = {
 };
 
 const PROFILE_COLUMNS =
-  "id,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,created_at,updated_at";
-const SCHOOL_COLUMNS =
-  "id,code,name_ru,name_kz,name_en,is_active,created_at";
+  "id,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,created_at,updated_at,schools(id,name_ru)";
+const SCHOOL_COLUMNS = "id,code,name_ru,name_kz,name_en,is_active,created_at";
 const TEAM_COLUMNS =
   "id,name,captain_id,members_count,status,created_at,updated_at";
 const TEAM_MEMBER_COLUMNS =
   "id,team_id,user_id,first_name,last_name,email,phone,telegram,is_captain";
 
-const normalizeNullableText = (value: string | null | undefined): string | null => {
+const escapePostgresLikePattern = (value: string): string =>
+  value.replace(/[\\%_]/g, "\\$&");
+
+const normalizeNullableText = (
+  value: string | null | undefined,
+): string | null => {
   if (!value) {
     return null;
   }
@@ -124,7 +134,7 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
     throw error;
   }
 
-  return data as ProfileRow | null;
+  return data as unknown as ProfileRow | null;
 }
 
 export async function getActiveSchools(): Promise<SchoolRow[]> {
@@ -141,7 +151,43 @@ export async function getActiveSchools(): Promise<SchoolRow[]> {
   return (data ?? []) as SchoolRow[];
 }
 
-export async function getTeamByCaptain(captainId: string): Promise<TeamRow | null> {
+export async function searchActiveSchools(
+  input: SearchSchoolsInput,
+): Promise<SchoolRow[]> {
+  const normalizedQuery = input.query.trim();
+  const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
+  // Search with one character is intentionally skipped to avoid noisy queries.
+  if (normalizedQuery.length === 1) {
+    return [];
+  }
+
+  let queryBuilder = supabase
+    .from("schools")
+    .select(SCHOOL_COLUMNS)
+    .eq("is_active", true)
+    .order("name_ru", { ascending: true })
+    .limit(limit);
+
+  if (normalizedQuery.length > 0) {
+    queryBuilder = queryBuilder.ilike(
+      "name_ru",
+      `%${escapePostgresLikePattern(normalizedQuery)}%`,
+    );
+  }
+
+  const { data, error } = await queryBuilder;
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as SchoolRow[];
+}
+
+export async function getTeamByCaptain(
+  captainId: string,
+): Promise<TeamRow | null> {
   const { data, error } = await supabase
     .from("teams")
     .select(TEAM_COLUMNS)
@@ -269,7 +315,7 @@ export async function upsertProfile(
     throw error;
   }
 
-  return data as ProfileRow;
+  return data as unknown as ProfileRow;
 }
 
 export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
@@ -324,12 +370,13 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
     is_captain: true,
   };
 
-  const { data: existingCaptainRowsRaw, error: captainReadError } = await supabase
-    .from("team_members")
-    .select("id")
-    .eq("team_id", team.id)
-    .eq("is_captain", true)
-    .limit(1);
+  const { data: existingCaptainRowsRaw, error: captainReadError } =
+    await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", team.id)
+      .eq("is_captain", true)
+      .limit(1);
 
   if (captainReadError) {
     throw captainReadError;
@@ -350,7 +397,9 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
       throw error;
     }
   } else {
-    const { error } = await supabase.from("team_members").insert(captainPayload);
+    const { error } = await supabase
+      .from("team_members")
+      .insert(captainPayload);
 
     if (error) {
       throw error;

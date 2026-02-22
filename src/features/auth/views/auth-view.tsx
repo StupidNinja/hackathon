@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,16 +29,8 @@ import {
 import { Input } from "@/common/components/ui/input";
 import { Separator } from "@/common/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/common/components/ui/tabs";
+import { useI18n } from "@/common/i18n/use-i18n";
 
-const authSchema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128, "Password is too long"),
-});
-
-type AuthFormValues = z.infer<typeof authSchema>;
 type AuthMode = "sign-in" | "sign-up";
 
 function GoogleIcon() {
@@ -70,10 +62,25 @@ function GoogleIcon() {
 }
 
 export function AuthView() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  const authSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t("auth.validation.email")),
+        password: z
+          .string()
+          .min(8, t("auth.validation.password.min"))
+          .max(128, t("auth.validation.password.max")),
+      }),
+    [t],
+  );
+
+  type AuthFormValues = z.infer<typeof authSchema>;
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
@@ -86,22 +93,28 @@ export function AuthView() {
   const onSubmit = async (values: AuthFormValues) => {
     if (mode === "sign-in") {
       const { error } = await signInWithPassword(values.email, values.password);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Welcome back!");
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success(t("auth.toast.welcomeBack"));
       void navigate("/");
       return;
     }
 
     const { data, error } = await signUpWithPassword(values.email, values.password);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
     if (data.session) {
-      toast.success("Account created!");
+      toast.success(t("auth.toast.accountCreated"));
       void navigate("/");
       return;
     }
 
-    toast.success("Check your email to verify your account, then sign in.");
+    toast.success(t("auth.toast.checkEmail"));
     setMode("sign-in");
   };
 
@@ -123,45 +136,45 @@ export function AuthView() {
     <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Hackathon 2026</h1>
-          <p className="text-sm text-muted-foreground">Team registration portal</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("app.name")}</h1>
+          <p className="text-sm text-muted-foreground">{t("auth.subtitle")}</p>
         </div>
 
         <Card className="shadow-md">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">
-              {mode === "sign-in" ? "Sign in to your account" : "Create an account"}
+              {mode === "sign-in" ? t("auth.signInTitle") : t("auth.signUpTitle")}
             </CardTitle>
             <CardDescription>
-              {mode === "sign-in"
-                ? "Enter your credentials to continue."
-                : "Fill in your details to register."}
+              {mode === "sign-in" ? t("auth.signInDesc") : t("auth.signUpDesc")}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-5">
             <Tabs value={mode} onValueChange={handleModeChange}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-                <TabsTrigger value="sign-up">Sign up</TabsTrigger>
+                <TabsTrigger value="sign-in">{t("auth.tab.signIn")}</TabsTrigger>
+                <TabsTrigger value="sign-up">{t("auth.tab.signUp")}</TabsTrigger>
               </TabsList>
             </Tabs>
 
             <Form {...form}>
               <form
                 className="space-y-4"
-                onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+                onSubmit={(e) => {
+                  void form.handleSubmit(onSubmit)(e);
+                }}
               >
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("common.email")}</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="you@example.com"
+                          placeholder={t("auth.placeholderEmail")}
                           autoComplete="email"
                           disabled={isLoading}
                           {...field}
@@ -177,13 +190,19 @@ export function AuthView() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t("auth.password")}</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
-                            placeholder={mode === "sign-up" ? "Min. 8 characters" : "••••••••"}
-                            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                            placeholder={
+                              mode === "sign-up"
+                                ? t("auth.placeholderPasswordSignUp")
+                                : "********"
+                            }
+                            autoComplete={
+                              mode === "sign-in" ? "current-password" : "new-password"
+                            }
                             disabled={isLoading}
                             className="pr-10"
                             {...field}
@@ -193,9 +212,15 @@ export function AuthView() {
                             tabIndex={-1}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                             onClick={() => setShowPassword((v) => !v)}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            aria-label={
+                              showPassword ? t("auth.hidePassword") : t("auth.showPassword")
+                            }
                           >
-                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            {showPassword ? (
+                              <EyeOff className="size-4" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
                           </button>
                         </div>
                       </FormControl>
@@ -206,17 +231,17 @@ export function AuthView() {
 
                 <Button className="w-full" type="submit" disabled={isLoading}>
                   {isSubmitting
-                    ? "Please wait…"
+                    ? t("auth.wait")
                     : mode === "sign-in"
-                      ? "Sign in"
-                      : "Create account"}
+                      ? t("auth.tab.signIn")
+                      : t("auth.createAccount")}
                 </Button>
               </form>
             </Form>
 
             <div className="flex items-center gap-3">
               <Separator className="flex-1" />
-              <span className="shrink-0 text-xs text-muted-foreground">or</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{t("auth.or")}</span>
               <Separator className="flex-1" />
             </div>
 
@@ -228,12 +253,12 @@ export function AuthView() {
               onClick={() => void handleGoogleSignIn()}
             >
               <GoogleIcon />
-              {isOAuthLoading ? "Redirecting…" : "Continue with Google"}
+              {isOAuthLoading ? t("auth.redirecting") : t("auth.continueGoogle")}
             </Button>
 
             {mode === "sign-up" && (
               <p className="text-center text-xs text-muted-foreground">
-                Email verification is required for email/password sign-up.
+                {t("auth.verifyEmailRequired")}
               </p>
             )}
           </CardContent>

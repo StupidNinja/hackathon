@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useUnsavedChanges } from "@/common/hooks/use-unsaved-changes";
+import { UnsavedChangesDialog } from "@/common/components/unsaved-changes-dialog";
 import { toast } from "sonner";
-import { Trash2, UserPlus } from "lucide-react";
+import { Loader2, Trash2, UserPlus } from "lucide-react";
 import { z } from "zod";
 import {
   getProfile,
@@ -13,6 +15,7 @@ import {
 } from "@/common/api/supabase";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { PhoneInput } from "@/common/components/ui/phone-input";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import { usePageTitle } from "@/common/hooks/use-page-title";
@@ -20,6 +23,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
@@ -33,32 +37,7 @@ import {
 } from "@/common/components/ui/form";
 import { Input } from "@/common/components/ui/input";
 import { Separator } from "@/common/components/ui/separator";
-
-const optionalEmailSchema = z
-  .string()
-  .trim()
-  .max(254, "Email is too long")
-  .refine((value) => value.length === 0 || z.email().safeParse(value).success, {
-    message: "Enter a valid email",
-  });
-
-const memberSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
-  email: optionalEmailSchema,
-  phone: z.string().trim().max(32, "Phone is too long"),
-  telegram: z.string().trim().max(64, "Telegram handle is too long"),
-});
-
-const teamFormSchema = z.object({
-  teamName: z.string().trim().min(1, "Team name is required"),
-  members: z
-    .array(memberSchema)
-    .min(1, "Add at least one additional member (2 total including captain)")
-    .max(3, "A team can have at most 4 members including captain"),
-});
-
-type TeamFormValues = z.infer<typeof teamFormSchema>;
+import { useI18n } from "@/common/i18n/use-i18n";
 
 const createEmptyMember = () => ({
   firstName: "",
@@ -68,17 +47,53 @@ const createEmptyMember = () => ({
   telegram: "",
 });
 
-const emptyTeamFormValues: TeamFormValues = {
-  teamName: "",
-  members: [createEmptyMember()],
-};
-
 export function EditTeamView() {
-  usePageTitle("Edit Team");
+  const { t } = useI18n();
+  usePageTitle(t("settings.team.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const teamFormSchema = useMemo(() => {
+    const requiredEmailSchema = z
+      .string()
+      .trim()
+      .min(1, t("validation.emailRequired"))
+      .max(254, t("validation.emailTooLong"))
+      .pipe(z.email(t("validation.validEmail")));
+
+    const memberSchema = z.object({
+      firstName: z.string().trim().min(1, t("validation.firstNameRequired")),
+      lastName: z.string().trim().min(1, t("validation.lastNameRequired")),
+      email: requiredEmailSchema,
+      phone: z
+        .string()
+        .trim()
+        .min(1, t("validation.phoneRequired"))
+        .max(32, t("validation.phoneTooLong")),
+      telegram: z
+        .string()
+        .trim()
+        .min(1, t("validation.telegramRequired"))
+        .max(64, t("validation.telegramTooLong")),
+    });
+
+    return z.object({
+      teamName: z.string().trim().min(1, t("validation.teamNameRequired")),
+      members: z
+        .array(memberSchema)
+        .min(1, t("validation.membersMin"))
+        .max(3, t("validation.membersMax")),
+    });
+  }, [t]);
+
+  type TeamFormValues = z.infer<typeof teamFormSchema>;
+
+  const emptyTeamFormValues: TeamFormValues = {
+    teamName: "",
+    members: [createEmptyMember()],
+  };
 
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamFormSchema),
@@ -88,10 +103,21 @@ export function EditTeamView() {
   const {
     control,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = form;
 
+  const unsaved = useUnsavedChanges(isDirty);
+
   const { fields, append, remove } = useFieldArray({ control, name: "members" });
+
+  const handleRemoveMember = (index: number) => {
+    const values = form.getValues(`members.${index}`);
+    const hasFilled = Object.values(values).some((v) => v.trim().length > 0);
+    if (hasFilled && !window.confirm(t("settings.team.removeConfirm", { index: index + 2 }))) {
+      return;
+    }
+    remove(index);
+  };
 
   const profileQuery = useQuery({
     queryKey: ["onboarding", "profile", userId],
@@ -127,14 +153,19 @@ export function EditTeamView() {
 
   const onSubmit = async (values: TeamFormValues) => {
     if (!user || !userId) {
-      toast.error("Your session is not available. Please sign in again.");
+      toast.error(t("toast.sessionExpired"));
       return;
     }
 
     const profile = profileQuery.data;
 
     if (!profile) {
-      toast.error("Complete your profile first.");
+      toast.error(t("toast.completeProfileFirst"));
+      void navigate("/settings/profile");
+      return;
+    }
+    if (!user.email || !profile.phone || !profile.telegram) {
+      toast.error(t("toast.completeProfileContact"));
       void navigate("/settings/profile");
       return;
     }
@@ -160,11 +191,16 @@ export function EditTeamView() {
         })),
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-      toast.success("Team saved");
+      await queryClient.invalidateQueries({
+        queryKey: ["onboarding"],
+        refetchType: "all",
+      });
+      toast.success(t("settings.team.toast.saved"));
+      reset(values);
+      unsaved.confirmLeave();
       void navigate("/dashboard");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save team";
+      const message = error instanceof Error ? error.message : t("toast.teamSaveFailed");
       toast.error(message);
     }
   };
@@ -172,33 +208,46 @@ export function EditTeamView() {
   if (!userId) return null;
 
   if (profileQuery.isPending || teamQuery.isPending) {
-    return <LoadingScreen message="Loading team…" />;
+    return <LoadingScreen message={t("settings.team.loading")} />;
   }
 
   if (profileQuery.isError || teamQuery.isError) {
-    return <ErrorScreen message="Failed to load team data." />;
+    return (
+      <ErrorScreen
+        message={t("settings.team.error")}
+        onRetry={() => {
+          void profileQuery.refetch();
+          void teamQuery.refetch();
+        }}
+      />
+    );
   }
 
   const profile = profileQuery.data;
 
   if (!profile) return <Navigate to="/settings/profile" replace />;
   if (!profile.first_name || !profile.last_name) return <Navigate to="/settings/profile" replace />;
+  if (!profile.phone || !profile.telegram) return <Navigate to="/settings/profile" replace />;
   if (profile.role !== "team") return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="space-y-4">
+      <UnsavedChangesDialog
+        open={unsaved.isBlocked}
+        onDiscard={unsaved.proceed}
+        onCancel={unsaved.reset}
+      />
       <Form {...form}>
         <form
           className="space-y-4"
-          onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
+          onSubmit={(e) => {
+            void form.handleSubmit(onSubmit)(e);
+          }}
         >
-          {/* Team name */}
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Team details</CardTitle>
-              <CardDescription>
-                Update your team name and manage your team members.
-              </CardDescription>
+              <CardTitle>{t("settings.team.detailsTitle")}</CardTitle>
+              <CardDescription>{t("settings.team.detailsDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <FormField
@@ -206,9 +255,13 @@ export function EditTeamView() {
                 name="teamName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Team name</FormLabel>
+                    <FormLabel>{t("onboarding.team.teamName")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Quantum Foxes" disabled={isSubmitting} {...field} />
+                      <Input
+                        placeholder={t("onboarding.team.teamNamePlaceholder")}
+                        disabled={isSubmitting}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,50 +270,68 @@ export function EditTeamView() {
             </CardContent>
           </Card>
 
-          {/* Captain (read-only) */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Captain (you)</CardTitle>
-                <Badge variant="outline">Auto-filled</Badge>
+                <div>
+                  <CardTitle className="text-base">{t("onboarding.team.captainTitle")}</CardTitle>
+                  <CardDescription className="mt-0.5 text-xs">
+                    {t("settings.team.captainSynced")}{" "}
+                    <Link to="/settings/profile" className="text-primary hover:underline">
+                      {t("settings.team.profileLink")}
+                    </Link>
+                    .
+                  </CardDescription>
+                </div>
+                <Badge variant="outline">{t("onboarding.team.autoFilled")}</Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">First name</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("common.firstName")}
+                  </span>
                   <Input value={profile.first_name ?? ""} disabled />
                 </div>
                 <div className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Last name</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("common.lastName")}
+                  </span>
                   <Input value={profile.last_name ?? ""} disabled />
                 </div>
                 <div className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Email</span>
-                  <Input value={user.email ?? ""} disabled />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("common.email")}
+                  </span>
+                  <Input value={user.email ?? t("common.noData")} disabled />
                 </div>
                 <div className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Phone</span>
-                  <Input value={profile.phone ?? "—"} disabled />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("common.phone")}
+                  </span>
+                  <Input value={profile.phone ?? t("common.noData")} disabled />
                 </div>
-                {profile.telegram && (
-                  <div className="grid gap-1.5 sm:col-span-2">
-                    <span className="text-xs font-medium text-muted-foreground">Telegram</span>
-                    <Input value={profile.telegram} disabled />
-                  </div>
-                )}
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {t("common.telegram")}
+                  </span>
+                  <Input value={profile.telegram ?? t("common.noData")} disabled />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Additional members */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base">Additional members</CardTitle>
+                  <CardTitle className="text-base">{t("onboarding.team.additionalTitle")}</CardTitle>
                   <CardDescription className="mt-0.5 text-xs">
-                    {fields.length} of 3 slots used
+                    {t("settings.team.additionalCount", {
+                      additional: fields.length,
+                      total: fields.length + 1,
+                    })}
                   </CardDescription>
                 </div>
                 <Button
@@ -272,31 +343,33 @@ export function EditTeamView() {
                   disabled={fields.length >= 3 || isSubmitting}
                 >
                   <UserPlus className="size-3.5" />
-                  Add member
+                  {t("onboarding.team.addMember")}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {form.formState.errors.members?.message && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.members.message}
-                </p>
+                <p className="text-sm text-destructive">{form.formState.errors.members.message}</p>
               )}
 
               {fields.map((field, index) => (
-                <div key={field.id} className="rounded-lg border p-4 space-y-3">
+                <div key={field.id} className="rounded-lg border border-l-4 border-l-primary/20 p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Member {index + 2}</span>
+                    <span className="text-sm font-medium">
+                      {t("onboarding.team.member", { index: index + 2 })}
+                    </span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-7 gap-1 text-muted-foreground hover:text-destructive"
-                      onClick={() => remove(index)}
+                      onClick={() => handleRemoveMember(index)}
                       disabled={fields.length <= 1 || isSubmitting}
+                      aria-label={t("settings.team.removeAria", { index: index + 2 })}
+                      title={fields.length <= 1 ? t("settings.team.removeDisabledHint") : undefined}
                     >
                       <Trash2 className="size-3.5" />
-                      Remove
+                      {t("onboarding.team.remove")}
                     </Button>
                   </div>
                   <Separator />
@@ -306,7 +379,7 @@ export function EditTeamView() {
                       name={`members.${index}.firstName`}
                       render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">First name</FormLabel>
+                          <FormLabel className="text-xs">{t("common.firstName")}</FormLabel>
                           <FormControl>
                             <Input placeholder="Alex" disabled={isSubmitting} {...f} />
                           </FormControl>
@@ -319,7 +392,7 @@ export function EditTeamView() {
                       name={`members.${index}.lastName`}
                       render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">Last name</FormLabel>
+                          <FormLabel className="text-xs">{t("common.lastName")}</FormLabel>
                           <FormControl>
                             <Input placeholder="Kim" disabled={isSubmitting} {...f} />
                           </FormControl>
@@ -332,10 +405,7 @@ export function EditTeamView() {
                       name={`members.${index}.email`}
                       render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">
-                            Email{" "}
-                            <span className="font-normal text-muted-foreground">(optional)</span>
-                          </FormLabel>
+                          <FormLabel className="text-xs">{t("common.email")}</FormLabel>
                           <FormControl>
                             <Input placeholder="alex@example.com" disabled={isSubmitting} {...f} />
                           </FormControl>
@@ -348,12 +418,14 @@ export function EditTeamView() {
                       name={`members.${index}.phone`}
                       render={({ field: f }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">
-                            Phone{" "}
-                            <span className="font-normal text-muted-foreground">(optional)</span>
-                          </FormLabel>
+                          <FormLabel className="text-xs">{t("common.phone")}</FormLabel>
                           <FormControl>
-                            <Input placeholder="+7 700 000 0000" disabled={isSubmitting} {...f} />
+                            <PhoneInput
+                              value={f.value}
+                              onChange={f.onChange}
+                              onBlur={f.onBlur}
+                              disabled={isSubmitting}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -363,11 +435,8 @@ export function EditTeamView() {
                       control={control}
                       name={`members.${index}.telegram`}
                       render={({ field: f }) => (
-                        <FormItem className="sm:col-span-2">
-                          <FormLabel className="text-xs">
-                            Telegram{" "}
-                            <span className="font-normal text-muted-foreground">(optional)</span>
-                          </FormLabel>
+                        <FormItem>
+                          <FormLabel className="text-xs">{t("common.telegram")}</FormLabel>
                           <FormControl>
                             <Input placeholder="@username" disabled={isSubmitting} {...f} />
                           </FormControl>
@@ -381,14 +450,17 @@ export function EditTeamView() {
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : "Save team"}
-            </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link to="/dashboard">Cancel</Link>
-            </Button>
-          </div>
+          <Card className="shadow-sm">
+            <CardFooter className="flex flex-wrap gap-3 border-t bg-muted/30 px-6 py-4 sm:sticky sm:bottom-0 sm:z-10">
+              <Button type="submit" disabled={isSubmitting || !isDirty}>
+                {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+                {isSubmitting ? t("common.saving") : t("settings.team.saveTeam")}
+              </Button>
+              <Button type="button" variant="outline" asChild>
+                <Link to="/dashboard">{t("common.cancel")}</Link>
+              </Button>
+            </CardFooter>
+          </Card>
         </form>
       </Form>
     </div>

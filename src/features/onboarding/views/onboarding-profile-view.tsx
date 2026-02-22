@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
@@ -6,15 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
-  getActiveSchools,
   getProfile,
   getTeamByCaptain,
   upsertProfile,
 } from "@/common/api/supabase";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { SchoolSearchSelect } from "@/common/components/school-search-select";
 import { Button } from "@/common/components/ui/button";
-import { usePageTitle } from "@/common/hooks/use-page-title";
 import {
   Card,
   CardContent,
@@ -25,13 +24,13 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/common/components/ui/form";
 import { Input } from "@/common/components/ui/input";
+import { PhoneInput } from "@/common/components/ui/phone-input";
 import {
   Select,
   SelectContent,
@@ -39,52 +38,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/common/components/ui/select";
+import { usePageTitle } from "@/common/hooks/use-page-title";
+import { useI18n } from "@/common/i18n/use-i18n";
 
 const OTHER_SCHOOL_VALUE = "__other__";
 
-const profileFormSchema = z
-  .object({
-    firstName: z.string().trim().min(1, "First name is required"),
-    lastName: z.string().trim().min(1, "Last name is required"),
-    phone: z.string().trim().max(32, "Phone is too long"),
-    telegram: z.string().trim().max(64, "Telegram handle is too long"),
-    grade: z.enum(["10", "11"], {
-      error: "Select grade 10 or 11",
-    }),
-    schoolSelection: z.string().min(1, "Select a school or choose Other"),
-    customSchoolName: z.string().trim().max(120, "School name is too long"),
-  })
-  .superRefine((value, context) => {
-    if (
-      value.schoolSelection === OTHER_SCHOOL_VALUE &&
-      value.customSchoolName.trim().length === 0
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["customSchoolName"],
-        message: "Custom school name is required",
-      });
-    }
-  });
-
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
-
-const emptyProfileFormValues: ProfileFormValues = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  telegram: "",
-  grade: "10",
-  schoolSelection: "",
-  customSchoolName: "",
-};
-
 export function OnboardingProfileView() {
-  usePageTitle("Profile Setup");
+  const { t } = useI18n();
+  usePageTitle(t("onboarding.profile.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const profileFormSchema = useMemo(
+    () =>
+      z
+        .object({
+          firstName: z.string().trim().min(1, t("validation.firstNameRequired")),
+          lastName: z.string().trim().min(1, t("validation.lastNameRequired")),
+          phone: z
+            .string()
+            .trim()
+            .min(1, t("validation.phoneRequired"))
+            .max(32, t("validation.phoneTooLong")),
+          telegram: z
+            .string()
+            .trim()
+            .min(1, t("validation.telegramRequired"))
+            .max(64, t("validation.telegramTooLong")),
+          grade: z.enum(["10", "11"], { error: t("validation.selectGrade") }),
+          schoolSelection: z.string().min(1, t("validation.selectSchool")),
+          customSchoolName: z.string().trim().max(120, t("validation.schoolNameTooLong")),
+        })
+        .superRefine((value, context) => {
+          if (
+            value.schoolSelection === OTHER_SCHOOL_VALUE &&
+            value.customSchoolName.trim().length === 0
+          ) {
+            context.addIssue({
+              code: "custom",
+              path: ["customSchoolName"],
+              message: t("validation.customSchoolRequired"),
+            });
+          }
+        }),
+    [t],
+  );
+
+  type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
+  const emptyProfileFormValues = useMemo<ProfileFormValues>(
+    () => ({
+      firstName: "",
+      lastName: "",
+      phone: "",
+      telegram: "",
+      grade: "10",
+      schoolSelection: "",
+      customSchoolName: "",
+    }),
+    [],
+  );
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -103,41 +118,33 @@ export function OnboardingProfileView() {
     enabled: Boolean(userId),
   });
 
-  const schoolsQuery = useQuery({
-    queryKey: ["schools", "active"],
-    queryFn: getActiveSchools,
-    enabled: Boolean(userId),
-  });
-
   useEffect(() => {
     if (!profileQuery.isSuccess) return;
     const profile = profileQuery.data;
-    if (!profile) { reset(emptyProfileFormValues); return; }
-
-    const schoolSelection =
-      profile.school_id ??
-      (profile.custom_school_name ? OTHER_SCHOOL_VALUE : "");
-
+    if (!profile) {
+      reset(emptyProfileFormValues);
+      return;
+    }
     reset({
       firstName: profile.first_name ?? "",
       lastName: profile.last_name ?? "",
       phone: profile.phone ?? "",
       telegram: profile.telegram ?? "",
       grade: profile.grade === 11 ? "11" : "10",
-      schoolSelection,
+      schoolSelection:
+        profile.school_id ?? (profile.custom_school_name ? OTHER_SCHOOL_VALUE : ""),
       customSchoolName: profile.custom_school_name ?? "",
     });
-  }, [profileQuery.data, profileQuery.isSuccess, reset]);
+  }, [emptyProfileFormValues, profileQuery.data, profileQuery.isSuccess, reset]);
 
   const schoolSelection = useWatch({ control, name: "schoolSelection" });
   const showCustomSchoolInput = schoolSelection === OTHER_SCHOOL_VALUE;
 
   const onSubmit = async (values: ProfileFormValues) => {
     if (!userId) {
-      toast.error("Your session is not available. Please sign in again.");
+      toast.error(t("toast.sessionExpired"));
       return;
     }
-
     try {
       await upsertProfile(userId, {
         firstName: values.firstName,
@@ -145,197 +152,188 @@ export function OnboardingProfileView() {
         phone: values.phone,
         telegram: values.telegram,
         grade: values.grade === "11" ? 11 : 10,
-        schoolId:
-          values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
+        schoolId: values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
         customSchoolName:
           values.schoolSelection === OTHER_SCHOOL_VALUE ? values.customSchoolName : null,
         role: profileQuery.data?.role ?? "team",
       });
-
       const team = await getTeamByCaptain(userId);
-      await queryClient.invalidateQueries({ queryKey: ["onboarding"] });
-      toast.success("Profile saved!");
+      await queryClient.invalidateQueries({
+        queryKey: ["onboarding"],
+        refetchType: "all",
+      });
+      toast.success(t("onboarding.profile.toast.saved"));
       void navigate(team ? "/dashboard" : "/team");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save profile";
-      toast.error(message);
+      toast.error(error instanceof Error ? error.message : t("toast.profileSaveFailed"));
     }
   };
 
   if (!userId) return null;
 
-  if (profileQuery.isPending || schoolsQuery.isPending) {
-    return <LoadingScreen message="Loading profile…" />;
+  if (profileQuery.isPending) {
+    return <LoadingScreen message={t("onboarding.profile.loading")} />;
   }
 
-  if (profileQuery.isError || schoolsQuery.isError) {
-    return <ErrorScreen message="Failed to load profile data." />;
+  if (profileQuery.isError) {
+    return <ErrorScreen message={t("onboarding.profile.error")} />;
   }
 
-  const schools = schoolsQuery.data ?? [];
+  const selectedSchoolFromProfile = profileQuery.data?.schools;
 
   return (
     <div className="space-y-6">
       <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Personal information</CardTitle>
-            <CardDescription>
-              This will be used to identify you as the team captain.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                className="grid gap-5"
-                onSubmit={(e) => { void form.handleSubmit(onSubmit)(e); }}
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Alex" disabled={isSubmitting} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Johnson" disabled={isSubmitting} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Phone{" "}
-                          <span className="font-normal text-muted-foreground">(optional)</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="+7 700 000 0000" disabled={isSubmitting} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="telegram"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Telegram{" "}
-                          <span className="font-normal text-muted-foreground">(optional)</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="@username" disabled={isSubmitting} {...field} />
-                        </FormControl>
-                        <FormDescription>Without the @ is also fine.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={control}
-                  name="grade"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Grade</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={isSubmitting}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select grade" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="11">11</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={control}
-                  name="schoolSelection"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>School</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={isSubmitting}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select your school" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {schools.map((school) => (
-                            <SelectItem key={school.id} value={school.id}>
-                              {school.name_ru}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value={OTHER_SCHOOL_VALUE}>Other school</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {showCustomSchoolInput && (
-                  <FormField
-                    control={control}
-                    name="customSchoolName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>School name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Enter your school name"
-                            disabled={isSubmitting}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+        <CardHeader>
+          <CardTitle>{t("onboarding.profile.title")}</CardTitle>
+          <CardDescription>{t("onboarding.profile.desc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form
+              className="grid gap-5"
+              onSubmit={(e) => {
+                void form.handleSubmit(onSubmit)(e);
+              }}
+            >
+              <FormField
+                control={control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.firstName")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Alex" disabled={isSubmitting} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
+              />
 
-                <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving…" : "Save and continue →"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
+              <FormField
+                control={control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.lastName")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Johnson" disabled={isSubmitting} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.phone")}</FormLabel>
+                    <FormControl>
+                      <PhoneInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="telegram"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.telegram")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("onboarding.profile.telegramPlaceholder")}
+                        disabled={isSubmitting}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="grade"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.grade")}</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={isSubmitting}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={t("common.selectGrade")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="11">11</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="schoolSelection"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("common.school")}</FormLabel>
+                    <FormControl>
+                      <SchoolSearchSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isSubmitting}
+                        selectedSchoolFallback={selectedSchoolFromProfile}
+                        otherOptionValue={OTHER_SCHOOL_VALUE}
+                        otherOptionLabel={t("common.otherSchool")}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {showCustomSchoolInput && (
+                <FormField
+                  control={control}
+                  name="customSchoolName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("common.schoolName")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t("common.enterSchoolName")}
+                          disabled={isSubmitting}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
+                {isSubmitting ? t("common.saving") : t("onboarding.profile.saveContinue")}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
       </Card>
     </div>
   );

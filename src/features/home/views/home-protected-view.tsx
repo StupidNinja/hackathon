@@ -1,14 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
-import {
-  Users,
-} from "lucide-react";
+import { Users } from "lucide-react";
 import { getOnboardingSnapshot, getTeamWithMembers } from "@/common/api/supabase";
 import { useAuthStore } from "@/common/auth/authStore";
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/common/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Badge } from "@/common/components/ui/badge";
 import {
   Card,
@@ -25,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import { LoadingScreen, ErrorScreen } from "@/common/components/loading-screen";
+import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
 const teamStatusVariant: Record<
@@ -42,7 +38,8 @@ function getInitials(firstName: string | null, lastName: string | null): string 
 }
 
 export function HomeProtectedView() {
-  usePageTitle("Dashboard");
+  const { t } = useI18n();
+  usePageTitle(t("dashboard.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;
 
@@ -60,10 +57,12 @@ export function HomeProtectedView() {
 
   if (!userId) return null;
 
-  if (onboardingQuery.isPending) return <LoadingScreen message="Loading dashboard…" />;
+  if (onboardingQuery.isPending || (onboardingQuery.isFetching && onboardingQuery.isStale)) {
+    return <LoadingScreen message={t("dashboard.loading")} />;
+  }
 
   if (onboardingQuery.isError || !onboardingQuery.data) {
-    return <ErrorScreen message="Failed to load dashboard data." />;
+    return <ErrorScreen message={t("dashboard.error")} />;
   }
 
   if (onboardingQuery.data.state === "NO_PROFILE") return <Navigate to="/profile" replace />;
@@ -77,27 +76,27 @@ export function HomeProtectedView() {
   const firstName = profile?.first_name ?? "";
   const lastName = profile?.last_name ?? "";
 
+  const statusLabelMap: Record<string, string> = {
+    registered: t("dashboard.status.registered"),
+    cancelled: t("dashboard.status.cancelled"),
+    disqualified: t("dashboard.status.disqualified"),
+  };
+
   return (
     <div className="space-y-5">
-      {/* Page heading */}
       <div>
         <h2 className="text-xl font-bold tracking-tight">
-          Welcome back{firstName ? `, ${firstName}` : ""}!
+          {t("dashboard.welcome", { name: firstName ? `, ${firstName}` : "" })}
         </h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Your registration summary.
-        </p>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t("dashboard.summary")}</p>
       </div>
 
-      {/* Outer wrapper card */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Registration overview</CardTitle>
-          <CardDescription>Your profile and team details.</CardDescription>
+          <CardTitle className="text-base">{t("dashboard.overview.title")}</CardTitle>
+          <CardDescription>{t("dashboard.overview.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-
-          {/* Team inner card */}
           {team && (
             <Card className="bg-muted/40">
               <CardHeader className="pb-3">
@@ -111,12 +110,13 @@ export function HomeProtectedView() {
                           variant={teamStatusVariant[team.status] ?? "secondary"}
                           className="text-xs"
                         >
-                          {team.status}
+                          {statusLabelMap[team.status] ?? team.status}
                         </Badge>
                       </CardTitle>
                       <CardDescription className="mt-0.5 text-xs">
-                        {members.length > 0 ? members.length : (team.members_count ?? 0)}{" "}
-                        member{members.length !== 1 ? "s" : ""} total (including captain)
+                        {t("dashboard.team.totalMembers", {
+                          count: members.length > 0 ? members.length : (team.members_count ?? 0),
+                        })}
                       </CardDescription>
                     </div>
                   </div>
@@ -124,7 +124,7 @@ export function HomeProtectedView() {
                     to="/settings/team"
                     className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
                   >
-                    Edit
+                    {t("common.edit")}
                   </Link>
                 </div>
               </CardHeader>
@@ -133,10 +133,10 @@ export function HomeProtectedView() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="hidden sm:table-cell">Email</TableHead>
-                        <TableHead className="hidden md:table-cell">Telegram</TableHead>
+                        <TableHead>{t("dashboard.table.name")}</TableHead>
+                        <TableHead>{t("dashboard.table.role")}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t("common.email")}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t("common.telegram")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -146,13 +146,15 @@ export function HomeProtectedView() {
                             {captainMember.first_name} {captainMember.last_name}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="text-xs">Captain</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {t("dashboard.table.captain")}
+                            </Badge>
                           </TableCell>
                           <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                            {captainMember.email ?? "—"}
+                            {captainMember.email ?? t("common.noData")}
                           </TableCell>
                           <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                            {captainMember.telegram ?? "—"}
+                            {captainMember.telegram ?? t("common.noData")}
                           </TableCell>
                         </TableRow>
                       )}
@@ -161,12 +163,14 @@ export function HomeProtectedView() {
                           <TableCell className="font-medium">
                             {member.first_name} {member.last_name}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">Member</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {t("dashboard.table.member")}
+                          </TableCell>
                           <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                            {member.email ?? "—"}
+                            {member.email ?? t("common.noData")}
                           </TableCell>
                           <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                            {member.telegram ?? "—"}
+                            {member.telegram ?? t("common.noData")}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -177,7 +181,6 @@ export function HomeProtectedView() {
             </Card>
           )}
 
-          {/* Profile inner card */}
           {profile && (
             <Card className="bg-muted/40">
               <CardHeader className="pb-3">
@@ -199,7 +202,7 @@ export function HomeProtectedView() {
                     to="/settings/profile"
                     className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
                   >
-                    Edit
+                    {t("common.edit")}
                   </Link>
                 </div>
               </CardHeader>
@@ -207,19 +210,27 @@ export function HomeProtectedView() {
                 <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
                   {profile.grade && (
                     <div>
-                      <dt className="text-xs text-muted-foreground">Grade</dt>
+                      <dt className="text-xs text-muted-foreground">{t("dashboard.profile.grade")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.grade}</dd>
+                    </div>
+                  )}
+                  {(profile.schools?.name_ru ?? profile.custom_school_name) && (
+                    <div className="col-span-2 sm:col-span-1">
+                      <dt className="text-xs text-muted-foreground">{t("dashboard.profile.school")}</dt>
+                      <dd className="mt-0.5 font-medium">
+                        {profile.schools?.name_ru ?? profile.custom_school_name}
+                      </dd>
                     </div>
                   )}
                   {profile.phone && (
                     <div>
-                      <dt className="text-xs text-muted-foreground">Phone</dt>
+                      <dt className="text-xs text-muted-foreground">{t("common.phone")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.phone}</dd>
                     </div>
                   )}
                   {profile.telegram && (
                     <div>
-                      <dt className="text-xs text-muted-foreground">Telegram</dt>
+                      <dt className="text-xs text-muted-foreground">{t("common.telegram")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.telegram}</dd>
                     </div>
                   )}
