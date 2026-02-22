@@ -37,6 +37,7 @@ export type TeamRow = {
   name: string;
   captain_id: string;
   members_count: number | null;
+  is_registered: boolean;
   status: "registered" | "cancelled" | "disqualified";
   created_at: string;
   updated_at: string;
@@ -105,7 +106,7 @@ const PROFILE_COLUMNS =
   "id,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,created_at,updated_at,schools(id,name_ru)";
 const SCHOOL_COLUMNS = "id,code,name_ru,name_kz,name_en,is_active,created_at";
 const TEAM_COLUMNS =
-  "id,name,captain_id,members_count,status,created_at,updated_at";
+  "id,name,captain_id,members_count,is_registered,status,created_at,updated_at";
 const TEAM_MEMBER_COLUMNS =
   "id,team_id,user_id,first_name,last_name,email,phone,telegram,is_captain";
 
@@ -198,7 +199,6 @@ export async function getTeamByCaptain(
   if (error) {
     throw error;
   }
-
   return ((data ?? [])[0] ?? null) as TeamRow | null;
 }
 
@@ -332,7 +332,7 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
       .insert({
         name: normalizedTeamName,
         captain_id: input.captainId,
-        status: "registered",
+        is_registered: false,
       })
       .select(TEAM_COLUMNS)
       .single();
@@ -340,7 +340,6 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
     if (error) {
       throw error;
     }
-
     team = data as TeamRow;
   } else {
     const { data, error } = await supabase
@@ -355,7 +354,6 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
     if (error) {
       throw error;
     }
-
     team = data as TeamRow;
   }
 

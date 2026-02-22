@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { LayoutDashboard, LogOut, Trophy } from "lucide-react";
+import { CalendarDays, LayoutDashboard, LogOut, Trophy } from "lucide-react";
 import { signOut } from "@/common/api/supabase";
 import { useAuthStore } from "@/common/auth/authStore";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
@@ -25,22 +25,60 @@ import {
 } from "@/common/components/ui/sidebar";
 import { useI18n } from "@/common/i18n/use-i18n";
 
-function getInitials(firstName: string | null, lastName: string | null): string {
-  return ((firstName?.[0] ?? "") + (lastName?.[0] ?? "")).toUpperCase() || "?";
+function getInitials({
+  firstName,
+  lastName,
+  email,
+}: {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}): string {
+  const normalizedFirst = firstName?.trim() ?? "";
+  const normalizedLast = lastName?.trim() ?? "";
+
+  const byName = ((normalizedFirst[0] ?? "") + (normalizedLast[0] ?? "")).toUpperCase();
+  if (byName) {
+    return byName;
+  }
+
+  const emailLocalPart = email?.split("@")[0]?.trim() ?? "";
+  if (emailLocalPart.length > 0) {
+    return emailLocalPart[0].toUpperCase();
+  }
+
+  return "?";
 }
 
 function AppSidebar() {
   const { t } = useI18n();
-  const navItems = [{ label: t("dashboard.nav.dashboard"), to: "/dashboard", icon: LayoutDashboard }];
+  const navItems = [
+    { label: t("dashboard.nav.dashboard"), to: "/dashboard", icon: LayoutDashboard },
+    { label: t("dashboard.nav.hackathon"), to: "/hackathon", icon: CalendarDays },
+  ];
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const profile = user
-    ? { firstName: null as string | null, lastName: null as string | null }
-    : null;
+  const metadata = user?.user_metadata as
+    | { first_name?: string; last_name?: string; full_name?: string }
+    | undefined;
+  let firstName = metadata?.first_name ?? null;
+  let lastName = metadata?.last_name ?? null;
+
+  if (!firstName && !lastName && metadata?.full_name) {
+    const parts = metadata.full_name.trim().split(/\s+/);
+    firstName = parts[0] ?? null;
+    lastName = parts[1] ?? null;
+  }
+
+  const avatarInitials = getInitials({
+    firstName,
+    lastName,
+    email: user?.email ?? null,
+  });
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -88,9 +126,7 @@ function AppSidebar() {
             <SidebarMenuItem>
               <div className="flex min-w-0 items-center gap-2 px-2 py-1.5">
                 <Avatar size="sm" className="shrink-0">
-                  <AvatarFallback className="text-xs">
-                    {getInitials(profile?.firstName ?? null, profile?.lastName ?? null)}
-                  </AvatarFallback>
+                  <AvatarFallback className="text-xs">{avatarInitials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium leading-none">
@@ -125,6 +161,7 @@ export function DashboardLayout() {
 
   const pageTitles: Record<string, string> = {
     "/dashboard": t("dashboard.nav.dashboard"),
+    "/hackathon": t("hackathon.pageTitle"),
     "/settings/profile": t("dashboard.title.profile"),
     "/settings/team": t("dashboard.title.team"),
   };

@@ -24,15 +24,6 @@ import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
-const teamStatusVariant: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  registered: "default",
-  cancelled: "destructive",
-  disqualified: "outline",
-};
-
 function getInitials(firstName: string | null, lastName: string | null): string {
   return ((firstName?.[0] ?? "") + (lastName?.[0] ?? "")).toUpperCase() || "?";
 }
@@ -76,21 +67,18 @@ export function HomeProtectedView() {
   const firstName = profile?.first_name ?? "";
   const lastName = profile?.last_name ?? "";
 
-  const statusLabelMap: Record<string, string> = {
-    registered: t("dashboard.status.registered"),
-    cancelled: t("dashboard.status.cancelled"),
-    disqualified: t("dashboard.status.disqualified"),
-  };
+  const statusLabel = team?.is_registered
+    ? t("dashboard.status.registered")
+    : t("dashboard.status.unregistered");
+  const roleBadgeClass =
+    "text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+  const teamStatusBadgeClass =
+    team?.is_registered
+      ? "text-xs bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : "text-xs bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight">
-          {t("dashboard.welcome", { name: firstName ? `, ${firstName}` : "" })}
-        </h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">{t("dashboard.summary")}</p>
-      </div>
-
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base">{t("dashboard.overview.title")}</CardTitle>
@@ -106,11 +94,8 @@ export function HomeProtectedView() {
                     <div>
                       <CardTitle className="flex items-center gap-2 text-sm">
                         {team.name}
-                        <Badge
-                          variant={teamStatusVariant[team.status] ?? "secondary"}
-                          className="text-xs"
-                        >
-                          {statusLabelMap[team.status] ?? team.status}
+                        <Badge className={teamStatusBadgeClass}>
+                          {statusLabel}
                         </Badge>
                       </CardTitle>
                       <CardDescription className="mt-0.5 text-xs">
@@ -146,7 +131,7 @@ export function HomeProtectedView() {
                             {captainMember.first_name} {captainMember.last_name}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge className={roleBadgeClass}>
                               {t("dashboard.table.captain")}
                             </Badge>
                           </TableCell>
@@ -163,8 +148,10 @@ export function HomeProtectedView() {
                           <TableCell className="font-medium">
                             {member.first_name} {member.last_name}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {t("dashboard.table.member")}
+                          <TableCell>
+                            <Badge className={roleBadgeClass}>
+                              {t("dashboard.table.member")}
+                            </Badge>
                           </TableCell>
                           <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
                             {member.email ?? t("common.noData")}

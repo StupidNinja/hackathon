@@ -5,6 +5,7 @@ import { NotificationsLayout } from "@/common/layouts/notifications-layout";
 import { NonAuthGuardLayout } from "@/common/layouts/non-auth-guard-layout/non-auth-guard-layout";
 import { OnboardingLayout } from "@/common/layouts/onboarding-layout/onboarding-layout";
 import { AuthView } from "@/features/auth/views/auth-view";
+import { HackathonView } from "@/features/hackathon/views/hackathon-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
 import { OnboardingEntryView } from "@/features/onboarding/views/onboarding-entry-view";
 import { OnboardingProfileView } from "@/features/onboarding/views/onboarding-profile-view";
@@ -55,6 +56,10 @@ export const routes: RouteObject[] = [
               {
                 path: "dashboard",
                 element: <HomeProtectedView />,
+              },
+              {
+                path: "hackathon",
+                element: <HackathonView />,
               },
               {
                 path: "settings/profile",
