@@ -91,11 +91,11 @@ function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b px-3 py-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <SidebarHeader className="h-14 border-b px-3 py-0">
+        <div className="flex h-full min-w-0 items-center gap-2">
           <Trophy className="size-5 shrink-0 text-primary" />
           {!isCollapsed && (
-            <span className="truncate font-semibold leading-none">{t("app.name")}</span>
+            <span className="truncate font-semibold leading-tight">{t("app.name")}</span>
           )}
         </div>
       </SidebarHeader>
@@ -129,7 +129,7 @@ function AppSidebar() {
                   <AvatarFallback className="text-xs">{avatarInitials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium leading-none">
+                  <p className="truncate text-xs font-medium leading-tight">
                     {user?.email ?? t("common.noData")}
                   </p>
                 </div>
