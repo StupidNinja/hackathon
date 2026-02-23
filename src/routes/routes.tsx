@@ -4,6 +4,7 @@ import { DashboardLayout } from "@/common/layouts/dashboard-layout/dashboard-lay
 import { NotificationsLayout } from "@/common/layouts/notifications-layout";
 import { NonAuthGuardLayout } from "@/common/layouts/non-auth-guard-layout/non-auth-guard-layout";
 import { OnboardingLayout } from "@/common/layouts/onboarding-layout/onboarding-layout";
+import { AuthCallbackView } from "@/features/auth/views/auth-callback-view";
 import { AuthView } from "@/features/auth/views/auth-view";
 import { HackathonView } from "@/features/hackathon/views/hackathon-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
@@ -19,6 +20,10 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <NotificationsLayout />,
     children: [
+      {
+        path: "auth/callback",
+        element: <AuthCallbackView />,
+      },
       {
         path: "auth",
         element: <NonAuthGuardLayout />,

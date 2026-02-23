@@ -6,7 +6,7 @@ export const signInWithPassword = (email: string, password: string) =>
 export const signUpWithPassword = (
   email: string,
   password: string,
-  emailRedirectTo: string = `${window.location.origin}/auth`,
+  emailRedirectTo: string = `${window.location.origin}/auth/callback`,
 ) =>
   supabase.auth.signUp({
     email,
@@ -17,7 +17,7 @@ export const signUpWithPassword = (
   });
 
 export const signInWithGoogle = (
-  redirectTo: string = `${window.location.origin}/`,
+  redirectTo: string = `${window.location.origin}/auth/callback`,
 ) =>
   supabase.auth.signInWithOAuth({
     provider: "google",

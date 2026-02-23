@@ -14,34 +14,43 @@ export function AuthInitializer({ children }: AuthInitializerProps) {
 
   useEffect(() => {
     let isMounted = true;
-
-    const bootstrap = async () => {
-      const { data, error } = await getSession();
-
-      if (!isMounted) {
-        return;
-      }
-
-      if (error || !data.session) {
-        clearSession();
-      } else {
-        setSession(data.session);
-      }
-
-      setAuthReady(true);
-    };
-
-    void bootstrap();
+    setAuthReady(false);
 
     const {
       data: { subscription },
     } = onAuthStateChange(async (_event, session) => {
+      if (!isMounted) {
+        return;
+      }
+
       if (session) {
         setSession(session);
       } else {
         clearSession();
       }
     });
+
+    const bootstrap = async () => {
+      try {
+        const { data, error } = await getSession();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (error || !data.session) {
+          clearSession();
+        } else {
+          setSession(data.session);
+        }
+      } finally {
+        if (isMounted) {
+          setAuthReady(true);
+        }
+      }
+    };
+
+    void bootstrap();
 
     return () => {
       isMounted = false;

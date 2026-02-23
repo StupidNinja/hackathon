@@ -29,6 +29,7 @@ import {
 import { Input } from "@/common/components/ui/input";
 import { Separator } from "@/common/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/common/components/ui/tabs";
+import { usePageTitle } from "@/common/hooks/use-page-title";
 import { useI18n } from "@/common/i18n/use-i18n";
 
 type AuthMode = "sign-in" | "sign-up";
@@ -67,6 +68,7 @@ export function AuthView() {
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  usePageTitle(mode === "sign-in" ? t("auth.signInTitle") : t("auth.signUpTitle"));
 
   const authSchema = useMemo(
     () =>
@@ -120,7 +122,7 @@ export function AuthView() {
 
   const handleGoogleSignIn = async () => {
     setIsOAuthLoading(true);
-    const { error } = await signInWithGoogle(`${window.location.origin}/`);
+    const { error } = await signInWithGoogle();
     if (error) {
       toast.error(error.message);
       setIsOAuthLoading(false);
