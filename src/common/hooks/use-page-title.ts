@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 
-const APP_NAME = "Хакатон 2026";
+const APP_NAME = "AI Talents Almaty Хакатон";
 
 /**
- * Sets the browser tab title to "Хакатон 2026 | <page>".
+ * Sets the browser tab title to "AI Talents Almaty Хакатон | <page>".
  * Pass an empty string to set just the app name.
  */
 export function usePageTitle(page: string) {

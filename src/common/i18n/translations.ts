@@ -1,6 +1,6 @@
 export const translations = {
   ru: {
-    "app.name": "Хакатон 2026",
+    "app.name": "AI Talents Almaty Хакатон",
     "common.loading": "Загрузка...",
     "common.error.generic": "Что-то пошло не так.",
     "common.tryAgain": "Попробовать снова",
