@@ -81,10 +81,7 @@ export function EditTeamView() {
 
     return z.object({
       teamName: z.string().trim().min(1, t("validation.teamNameRequired")),
-      members: z
-        .array(memberSchema)
-        .min(1, t("validation.membersMin"))
-        .max(3, t("validation.membersMax")),
+      members: z.array(memberSchema).max(3, t("validation.membersMax")),
     });
   }, [t]);
 
@@ -92,7 +89,7 @@ export function EditTeamView() {
 
   const emptyTeamFormValues: TeamFormValues = {
     teamName: "",
-    members: [createEmptyMember()],
+    members: [],
   };
 
   const form = useForm<TeamFormValues>({
@@ -147,7 +144,7 @@ export function EditTeamView() {
 
     reset({
       teamName: team?.name ?? "",
-      members: members.length > 0 ? members : [createEmptyMember()],
+      members,
     });
   }, [reset, teamQuery.data, teamQuery.isSuccess]);
 
@@ -364,9 +361,8 @@ export function EditTeamView() {
                       size="sm"
                       className="h-7 gap-1 text-muted-foreground hover:text-destructive"
                       onClick={() => handleRemoveMember(index)}
-                      disabled={fields.length <= 1 || isSubmitting}
+                      disabled={isSubmitting}
                       aria-label={t("settings.team.removeAria", { index: index + 2 })}
-                      title={fields.length <= 1 ? t("settings.team.removeDisabledHint") : undefined}
                     >
                       <Trash2 className="size-3.5" />
                       {t("onboarding.team.remove")}

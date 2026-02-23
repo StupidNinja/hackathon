@@ -79,10 +79,7 @@ export function OnboardingTeamView() {
 
     return z.object({
       teamName: z.string().trim().min(1, t("validation.teamNameRequired")),
-      members: z
-        .array(memberSchema)
-        .min(1, t("validation.membersMin"))
-        .max(3, t("validation.membersMax")),
+      members: z.array(memberSchema).max(3, t("validation.membersMax")),
     });
   }, [t]);
 
@@ -90,7 +87,7 @@ export function OnboardingTeamView() {
 
   const emptyTeamFormValues: TeamFormValues = {
     teamName: "",
-    members: [createEmptyMember()],
+    members: [],
   };
 
   const form = useForm<TeamFormValues>({
@@ -137,7 +134,7 @@ export function OnboardingTeamView() {
       }));
     reset({
       teamName: team?.name ?? "",
-      members: members.length > 0 ? members : [createEmptyMember()],
+      members,
     });
   }, [reset, teamQuery.data, teamQuery.isSuccess]);
 
@@ -342,7 +339,7 @@ export function OnboardingTeamView() {
                       size="sm"
                       className="h-7 gap-1 text-muted-foreground hover:text-destructive"
                       onClick={() => remove(index)}
-                      disabled={fields.length <= 1 || isSubmitting}
+                      disabled={isSubmitting}
                     >
                       <Trash2 className="size-3.5" />
                       {t("onboarding.team.remove")}
