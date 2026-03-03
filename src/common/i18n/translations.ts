@@ -48,12 +48,15 @@ export const translations = {
     "auth.or": "или",
     "auth.redirecting": "Переход...",
     "auth.continueGoogle": "Продолжить с Google",
-    "auth.verifyEmailRequired": "Для регистрации по email/паролю требуется подтверждение email.",
+    "auth.verifyEmailRequired":
+      "Для регистрации по email/паролю требуется подтверждение email.",
     "auth.toast.welcomeBack": "С возвращением!",
     "auth.toast.accountCreated": "Аккаунт создан!",
-    "auth.toast.checkEmail": "Проверьте email, подтвердите аккаунт и затем войдите.",
+    "auth.toast.checkEmail":
+      "Проверьте email, подтвердите аккаунт и затем войдите.",
     "auth.validation.email": "Введите корректный email",
-    "auth.validation.password.min": "Пароль должен содержать минимум 8 символов",
+    "auth.validation.password.min":
+      "Пароль должен содержать минимум 8 символов",
     "auth.validation.password.max": "Пароль слишком длинный",
     "onboarding.entry.loading": "Проверка состояния онбординга...",
     "onboarding.entry.error": "Не удалось загрузить состояние онбординга.",
@@ -61,7 +64,8 @@ export const translations = {
     "onboarding.profile.loading": "Загрузка профиля...",
     "onboarding.profile.error": "Не удалось загрузить данные профиля.",
     "onboarding.profile.title": "Личная информация",
-    "onboarding.profile.desc": "Эти данные используются для идентификации вас как капитана команды.",
+    "onboarding.profile.desc":
+      "Эти данные используются для идентификации вас как капитана команды.",
     "onboarding.profile.telegramPlaceholder": "username или @username",
     "onboarding.profile.saveContinue": "Сохранить и продолжить →",
     "onboarding.profile.toast.saved": "Профиль сохранен!",
@@ -69,7 +73,8 @@ export const translations = {
     "onboarding.team.loading": "Загрузка формы команды...",
     "onboarding.team.error": "Не удалось загрузить данные команды.",
     "onboarding.team.detailsTitle": "Данные команды",
-    "onboarding.team.detailsDesc": "Укажите название команды и добавьте 1-3 участников (всего 2-4 вместе с вами).",
+    "onboarding.team.detailsDesc":
+      "Укажите название команды и добавьте 1-3 участников (всего 2-4 вместе с вами).",
     "onboarding.team.teamName": "Название команды",
     "onboarding.team.teamNamePlaceholder": "например, Quantum Foxes",
     "onboarding.team.captainTitle": "Капитан (вы)",
@@ -89,7 +94,8 @@ export const translations = {
     "dashboard.summary": "Сводка по вашей регистрации.",
     "dashboard.overview.title": "Обзор регистрации",
     "dashboard.overview.desc": "Данные вашего профиля и команды.",
-    "dashboard.team.totalMembers": "{{count}} участников всего (включая капитана)",
+    "dashboard.team.totalMembers":
+      "{{count}} участников всего (включая капитана)",
     "dashboard.table.name": "Имя",
     "dashboard.table.role": "Роль",
     "dashboard.table.captain": "Капитан",
@@ -101,7 +107,8 @@ export const translations = {
     "dashboard.status.cancelled": "Отменена",
     "dashboard.status.disqualified": "Дисквалифицирована",
     "dashboard.telegram.title": "Официальный Telegram канал",
-    "dashboard.telegram.desc": "Присоединяйтесь к нашему каналу, чтобы получать актуальные новости, обновления и важные объявления о хакатоне.",
+    "dashboard.telegram.desc":
+      "Присоединяйтесь к нашему каналу, чтобы получать актуальные новости, обновления и важные объявления о хакатоне.",
     "dashboard.telegram.join": "Подписаться на канал",
     "dashboard.nav.dashboard": "Дашборд",
     "dashboard.nav.hackathon": "Хакатон",
@@ -109,7 +116,8 @@ export const translations = {
     "dashboard.title.profile": "Редактирование профиля",
     "dashboard.title.team": "Редактирование команды",
     "hackathon.pageTitle": "Хакатон",
-    "hackathon.description": "Скоро откроем расписание, задачи и формат участия.",
+    "hackathon.description":
+      "Скоро откроем расписание, задачи и формат участия.",
     "hackathon.details":
       "Мы опубликуем полную программу хакатона, критерии оценки, таймлайн и инструкции для команд. Пока можно подготовить команду, проверить профиль участников и убедиться, что контактные данные заполнены корректно.",
     "hackathon.card.nextLabel": "Что дальше",
@@ -129,22 +137,28 @@ export const translations = {
     "settings.team.loading": "Загрузка команды...",
     "settings.team.error": "Не удалось загрузить данные команды.",
     "settings.team.detailsTitle": "Данные команды",
-    "settings.team.detailsDesc": "Обновите название команды и состав участников.",
+    "settings.team.detailsDesc":
+      "Обновите название команды и состав участников.",
     "settings.team.captainSynced": "Синхронизируется из вашего",
     "settings.team.profileLink": "профиля",
-    "settings.team.additionalCount": "{{additional}}/3 доп. участников ({{total}} всего с капитаном)",
-    "settings.team.removeConfirm": "У участника {{index}} заполнены поля. Удалить его?",
+    "settings.team.additionalCount":
+      "{{additional}}/3 доп. участников ({{total}} всего с капитаном)",
+    "settings.team.removeConfirm":
+      "У участника {{index}} заполнены поля. Удалить его?",
     "settings.team.removeAria": "Удалить участника {{index}}",
-    "settings.team.removeDisabledHint": "Нужен минимум один дополнительный участник",
+    "settings.team.removeDisabledHint":
+      "Нужен минимум один дополнительный участник",
     "settings.team.saveTeam": "Сохранить команду",
     "settings.team.toast.saved": "Команда сохранена",
     "unsaved.title": "Несохраненные изменения",
-    "unsaved.desc": "У вас есть несохраненные изменения, которые будут потеряны. Вы уверены, что хотите покинуть страницу?",
+    "unsaved.desc":
+      "У вас есть несохраненные изменения, которые будут потеряны. Вы уверены, что хотите покинуть страницу?",
     "unsaved.stay": "Остаться",
     "unsaved.discard": "Не сохранять",
     "toast.sessionExpired": "Сессия недоступна. Войдите заново.",
     "toast.completeProfileFirst": "Сначала заполните профиль.",
-    "toast.completeProfileContact": "Заполните телефон и Telegram в профиле капитана.",
+    "toast.completeProfileContact":
+      "Заполните телефон и Telegram в профиле капитана.",
     "toast.profileSaveFailed": "Не удалось сохранить профиль",
     "toast.teamSaveFailed": "Не удалось сохранить команду",
     "validation.firstNameRequired": "Имя обязательно",
@@ -161,8 +175,10 @@ export const translations = {
     "validation.phoneRequired": "Телефон обязателен",
     "validation.telegramRequired": "Telegram обязателен",
     "validation.teamNameRequired": "Название команды обязательно",
-    "validation.membersMin": "Добавьте минимум одного участника (всего 2 с капитаном)",
-    "validation.membersMax": "В команде может быть максимум 4 участника с капитаном",
+    "validation.membersMin":
+      "Добавьте минимум одного участника (всего 2 с капитаном)",
+    "validation.membersMax":
+      "В команде может быть максимум 4 участника с капитаном",
   },
 } as const;
 
