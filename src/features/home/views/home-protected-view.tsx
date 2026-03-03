@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
-import { Users } from "lucide-react";
+import { Users, Send } from "lucide-react";
 import { getOnboardingSnapshot, getTeamWithMembers } from "@/common/api/supabase";
+import {
+  getDashboardPathForRole,
+  getUserRole,
+  isStaffRole,
+} from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Badge } from "@/common/components/ui/badge";
@@ -33,6 +38,7 @@ export function HomeProtectedView() {
   usePageTitle(t("dashboard.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;
+  const userRole = getUserRole(user);
 
   const onboardingQuery = useQuery({
     queryKey: ["onboarding", "snapshot", userId],
@@ -43,7 +49,10 @@ export function HomeProtectedView() {
   const teamQuery = useQuery({
     queryKey: ["onboarding", "team", userId],
     queryFn: () => getTeamWithMembers(userId!),
-    enabled: Boolean(userId) && onboardingQuery.data?.state === "READY",
+    enabled:
+      Boolean(userId) &&
+      onboardingQuery.data?.state === "READY" &&
+      onboardingQuery.data.profile?.role === "team",
   });
 
   if (!userId) return null;
@@ -56,10 +65,27 @@ export function HomeProtectedView() {
     return <ErrorScreen message={t("dashboard.error")} />;
   }
 
-  if (onboardingQuery.data.state === "NO_PROFILE") return <Navigate to="/profile" replace />;
+  if (onboardingQuery.data.state === "NO_PROFILE") {
+    if (isStaffRole(userRole)) {
+      return <Navigate to="/staff/profile" replace />;
+    }
+
+    return <Navigate to="/profile" replace />;
+  }
   if (onboardingQuery.data.state === "NO_TEAM") return <Navigate to="/team" replace />;
 
   const profile = onboardingQuery.data.profile;
+  const profileRole = profile?.role ?? userRole;
+  const isTeamProfile = profile?.role === "team";
+
+  if (isStaffRole(profileRole) && (!profile?.first_name || !profile?.last_name)) {
+    return <Navigate to="/staff/profile" replace />;
+  }
+
+  if (isStaffRole(profileRole)) {
+    return <Navigate to={getDashboardPathForRole(profileRole)} replace />;
+  }
+
   const team = onboardingQuery.data.team;
   const members = teamQuery.data?.members ?? [];
   const nonCaptainMembers = members.filter((m) => !m.is_captain);
@@ -79,13 +105,33 @@ export function HomeProtectedView() {
 
   return (
     <div className="space-y-5">
+      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
+        <CardHeader>
+          <CardTitle className="text-base">{t("dashboard.telegram.title")}</CardTitle>
+          <CardDescription className="mt-1.5">
+            {t("dashboard.telegram.desc")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="https://t.me/+WmFh6nzgDKY5NDky"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700"
+          >
+            <Send className="size-4" />
+            {t("dashboard.telegram.join")}
+          </a>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base">{t("dashboard.overview.title")}</CardTitle>
           <CardDescription>{t("dashboard.overview.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {team && (
+          {isTeamProfile && team && (
             <Card className="bg-muted/40">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-4">
@@ -186,7 +232,7 @@ export function HomeProtectedView() {
                     </div>
                   </div>
                   <Link
-                    to="/settings/profile"
+                    to={isTeamProfile ? "/settings/profile" : "/staff/profile"}
                     className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
                   >
                     {t("common.edit")}
@@ -195,13 +241,13 @@ export function HomeProtectedView() {
               </CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                  {profile.grade && (
+                  {isTeamProfile && profile.grade && (
                     <div>
                       <dt className="text-xs text-muted-foreground">{t("dashboard.profile.grade")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.grade}</dd>
                     </div>
                   )}
-                  {(profile.schools?.name_ru ?? profile.custom_school_name) && (
+                  {isTeamProfile && (profile.schools?.name_ru ?? profile.custom_school_name) && (
                     <div className="col-span-2 sm:col-span-1">
                       <dt className="text-xs text-muted-foreground">{t("dashboard.profile.school")}</dt>
                       <dd className="mt-0.5 font-medium">
@@ -209,13 +255,13 @@ export function HomeProtectedView() {
                       </dd>
                     </div>
                   )}
-                  {profile.phone && (
+                  {isTeamProfile && profile.phone && (
                     <div>
                       <dt className="text-xs text-muted-foreground">{t("common.phone")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.phone}</dd>
                     </div>
                   )}
-                  {profile.telegram && (
+                  {isTeamProfile && profile.telegram && (
                     <div>
                       <dt className="text-xs text-muted-foreground">{t("common.telegram")}</dt>
                       <dd className="mt-0.5 font-medium">{profile.telegram}</dd>
