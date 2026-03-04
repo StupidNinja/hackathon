@@ -14,7 +14,9 @@ export function getUserRole(user: User | null | undefined): AppRole | null {
   return APP_ROLES.has(rawRole as AppRole) ? (rawRole as AppRole) : null;
 }
 
-export function isStaffRole(role: AppRole | null | undefined): role is StaffRole {
+export function isStaffRole(
+  role: AppRole | null | undefined,
+): role is StaffRole {
   return role === "admin" || role === "jury";
 }
 
@@ -22,7 +24,9 @@ export function isSuperAdmin(profile: ProfileRow | null | undefined): boolean {
   return profile?.is_super_admin === true;
 }
 
-export function getDashboardPathForRole(role: AppRole | null | undefined): string {
+export function getDashboardPathForRole(
+  role: AppRole | null | undefined,
+): string {
   if (role === "admin") {
     return "/admin/teams";
   }

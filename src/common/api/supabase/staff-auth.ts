@@ -35,15 +35,18 @@ export async function createStaffUser(
 ): Promise<CreateStaffUserResult> {
   const accessToken = await getAccessTokenOrThrow();
 
-  const response = await supabase.functions.invoke<CreateStaffUserResult>("create_staff_user", {
-    body: {
-      ...input,
-      accessToken,
+  const response = await supabase.functions.invoke<CreateStaffUserResult>(
+    "create_staff_user",
+    {
+      body: {
+        ...input,
+        accessToken,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  );
 
   if (response.error) {
     let message: string | undefined;

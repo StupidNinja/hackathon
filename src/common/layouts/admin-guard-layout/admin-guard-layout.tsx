@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getProfile } from "@/common/api/supabase";
 import { getUserRole, isSuperAdmin } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
-import { LoadingScreen } from "@/common/components/loading-screen";
+import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 
 type AdminContextValue = {
   isSuperAdmin: boolean;
@@ -33,6 +33,14 @@ export function AdminGuardLayout() {
 
   if (profileQuery.isPending) {
     return <LoadingScreen />;
+  }
+
+  if (profileQuery.isError) {
+    return (
+      <ErrorScreen
+        onRetry={() => void profileQuery.refetch()}
+      />
+    );
   }
 
   return (

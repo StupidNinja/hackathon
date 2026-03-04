@@ -12,7 +12,8 @@ type CreateStaffUserRequest = {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const json = (status: number, payload: Record<string, unknown>) =>
@@ -22,7 +23,8 @@ const json = (status: number, payload: Record<string, unknown>) =>
   });
 
 function generatePassword(length = 14): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&";
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&";
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes)
     .map((b) => chars[b % chars.length])
@@ -111,9 +113,11 @@ Deno.serve(async (req) => {
     return json(401, { error: "Unauthorized" });
   }
 
-  const callerRole = (caller.app_metadata as { role?: unknown } | undefined)?.role;
+  const callerRole = (caller.app_metadata as { role?: unknown } | undefined)
+    ?.role;
   const callerIsSuperAdmin =
-    (caller.app_metadata as { is_super_admin?: unknown } | undefined)?.is_super_admin === true;
+    (caller.app_metadata as { is_super_admin?: unknown } | undefined)
+      ?.is_super_admin === true;
 
   if (callerRole !== "admin") {
     return json(403, { error: "Only admin users can create staff accounts" });
@@ -129,12 +133,13 @@ Deno.serve(async (req) => {
 
   const password = generatePassword();
 
-  const { data: newUserData, error: createError } = await adminClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    app_metadata: { role },
-  });
+  const { data: newUserData, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      app_metadata: { role },
+    });
 
   if (createError || !newUserData.user) {
     const message = createError?.message ?? "Failed to create user";

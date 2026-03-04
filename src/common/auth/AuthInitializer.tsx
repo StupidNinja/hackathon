@@ -31,6 +31,13 @@ export function AuthInitializer({ children }: AuthInitializerProps) {
     });
 
     const bootstrap = async () => {
+      const timeoutId = setTimeout(() => {
+        if (isMounted) {
+          clearSession();
+          setAuthReady(true);
+        }
+      }, 10_000);
+
       try {
         const { data, error } = await getSession();
 
@@ -44,6 +51,7 @@ export function AuthInitializer({ children }: AuthInitializerProps) {
           setSession(data.session);
         }
       } finally {
+        clearTimeout(timeoutId);
         if (isMounted) {
           setAuthReady(true);
         }

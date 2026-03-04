@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/common/api/supabase";
+import { updatePassword, clearMustChangePassword } from "@/common/api/supabase";
 import { useAuthStore } from "@/common/auth/authStore";
 import { getUserRole, getDashboardPathForRole } from "@/common/auth/roles";
 import { Button } from "@/common/components/ui/button";
@@ -68,36 +68,65 @@ export function ChangePasswordView() {
     defaultValues: { password: "", confirmPassword: "" },
   });
 
-  const onSubmit = async (values: FormValues) => {
-    const { error: pwError } = await supabase.auth.updateUser({
-      password: values.password,
-    });
+  /**
+   * Clears the must_change_password flag and invalidates cache.
+   * Separated so it can be retried independently if the password update already succeeded.
+   */
+  const clearPasswordFlag = useCallback(
+    async (uid: string) => {
+      await clearMustChangePassword(uid);
+      await queryClient.invalidateQueries({ queryKey: ["profile", uid] });
+    },
+    [queryClient],
+  );
 
+  const onSubmit = async (values: FormValues) => {
+    if (!userId) {
+      toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
+      return;
+    }
+
+    // Step 1: change the password
+    const { error: pwError } = await updatePassword(values.password);
     if (pwError) {
       toast.error(pwError.message);
       return;
     }
 
-    // Clear the flag in the profiles table (source of truth)
-    if (userId) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ must_change_password: false })
-        .eq("id", userId);
-
-      if (profileError) {
-        toast.error(profileError.message);
-        return;
-      }
-
-      // Invalidate the cached profile so AuthGuardLayout re-reads the updated row
-      await queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+    // Step 2: clear the must_change_password flag.
+    // If this fails we must NOT navigate — the user would be immediately redirected
+    // back to this page on next load. Show an error with a retry action instead.
+    try {
+      await clearPasswordFlag(userId);
+    } catch (flagErr) {
+      toast.error(
+        flagErr instanceof Error ? flagErr.message : t("changePassword.flagClearFailed"),
+        {
+          duration: Infinity,
+          action: {
+            label: t("common.retry"),
+            onClick: () => {
+              void (async () => {
+                try {
+                  await clearPasswordFlag(userId);
+                  toast.success(t("changePassword.success"));
+                  const role = getUserRole(useAuthStore.getState().user);
+                  void navigate(getDashboardPathForRole(role), { replace: true });
+                } catch {
+                  toast.error(t("changePassword.flagClearFailed"));
+                }
+              })();
+            },
+          },
+        },
+      );
+      return;
     }
 
     toast.success(t("changePassword.success"));
     const role = getUserRole(useAuthStore.getState().user);
-    const destination = getDashboardPathForRole(role);
-    void navigate(destination, { replace: true });
+    void navigate(getDashboardPathForRole(role), { replace: true });
   };
 
   return (

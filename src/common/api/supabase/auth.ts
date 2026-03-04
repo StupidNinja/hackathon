@@ -37,3 +37,23 @@ export const verifyInviteTokenHash = (tokenHash: string) =>
 export const onAuthStateChange = (
   callback: Parameters<typeof supabase.auth.onAuthStateChange>[0],
 ) => supabase.auth.onAuthStateChange(callback);
+
+/** Update the current user's password via Supabase Auth. */
+export const updatePassword = (password: string) =>
+  supabase.auth.updateUser({ password });
+
+/**
+ * Clear the must_change_password flag in the profiles table.
+ * Called after a successful password update so the staff member is no longer
+ * forced back to the change-password page.
+ */
+export async function clearMustChangePassword(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ must_change_password: false })
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}

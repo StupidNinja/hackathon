@@ -188,9 +188,10 @@ export function AdminStaffView() {
             <form
               className="space-y-4"
               onSubmit={(e) =>
-                void form.handleSubmit((values) =>
-                  createMutation.mutate({ ...values, role: addDialogRole! }),
-                )(e)
+                void form.handleSubmit((values) => {
+                  if (createMutation.isPending) return;
+                  createMutation.mutate({ ...values, role: addDialogRole! });
+                })(e)
               }
             >
               <FormField
@@ -269,7 +270,8 @@ export function AdminStaffView() {
         </DialogContent>
       </Dialog>
 
-      {/* Password reveal Dialog */}
+      {/* Password reveal Dialog — intentionally not dismissable via outside click or Escape
+           because the password cannot be recovered if accidentally closed. */}
       <Dialog
         open={passwordResult !== null}
         onOpenChange={(open) => {
@@ -279,7 +281,11 @@ export function AdminStaffView() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{t("admin.staff.password.title")}</DialogTitle>
           </DialogHeader>

@@ -3,10 +3,17 @@ import { type ProfileRow } from "./onboarding";
 
 export type StaffUserRow = Pick<
   ProfileRow,
-  "id" | "email" | "first_name" | "last_name" | "role" | "is_super_admin" | "created_at"
+  | "id"
+  | "email"
+  | "first_name"
+  | "last_name"
+  | "role"
+  | "is_super_admin"
+  | "created_at"
 >;
 
-const STAFF_USER_COLUMNS = "id,email,first_name,last_name,role,is_super_admin,created_at";
+const STAFF_USER_COLUMNS =
+  "id,email,first_name,last_name,role,is_super_admin,created_at";
 
 export async function getStaffUsers(): Promise<StaffUserRow[]> {
   const { data, error } = await supabase
