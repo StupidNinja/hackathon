@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+  <body style="margin:0;padding:0;background:#f6f8fb;font-family:Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;padding:32px;">
+            <tr>
+              <td>
+                <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;">Приглашение в жюри AITalents</h1>
+
+                <p style="margin:0 0 12px;font-size:16px;line-height:1.6;">
+                  Здравствуйте!
+                </p>
+
+                <p style="margin:0 0 20px;font-size:16px;line-height:1.6;">
+                  Вас пригласили в роль <strong>жюри</strong> на платформе хакатона <strong>AITalents</strong>.
+                  Чтобы принять приглашение и активировать доступ, перейдите по ссылке ниже.
+                </p>
+
+                <p style="margin:0 0 24px;">
+                  <a
+                    href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite&staff_invite_id={{ .Data.staff_invite_id }}"
+                    target="_blank"
+                    style="display:inline-block;padding:12px 20px;background:#111827;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;"
+                  >
+                    Принять приглашение
+                  </a>
+                </p>
+
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#4b5563;">
+                  Если кнопка не работает, откройте ссылку вручную:
+                </p>
+                <p style="margin:0 0 20px;font-size:14px;line-height:1.6;">
+                  <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite&staff_invite_id={{ .Data.staff_invite_id }}" target="_blank">{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite&staff_invite_id={{ .Data.staff_invite_id }}</a>
+                </p>
+
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#4b5563;">
+                  Ссылка действует ограниченное время.
+                </p>
+
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;">
+                  Если вы получили письмо по ошибке, просто проигнорируйте его.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

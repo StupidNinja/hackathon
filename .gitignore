@@ -22,6 +22,9 @@ dist-ssr
 .github/copilot-instructions.md
 docs/
 
+# Supabase CLI cache
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
