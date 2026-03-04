@@ -66,12 +66,13 @@ export const SchoolSearchSelect = React.forwardRef<
 
   const debouncedQuery = useDebouncedValue(searchText, 400);
   const normalizedQuery = debouncedQuery.trim();
-  const canRunSearchQuery =
-    normalizedQuery.length === 0 || normalizedQuery.length >= 2;
+  const isTyping = searchText.trim() !== debouncedQuery.trim();
+  const canRunSearchQuery = normalizedQuery.length >= 1;
 
   const schoolsQuery = useQuery({
     queryKey: ["schools", "search", normalizedQuery],
-    queryFn: () => searchActiveSchools({ query: normalizedQuery, limit: 20 }),
+    queryFn: ({ signal }) =>
+      searchActiveSchools({ query: normalizedQuery, limit: 20, signal }),
     enabled: open && canRunSearchQuery,
     staleTime: 30_000,
   });
@@ -224,11 +225,16 @@ export const SchoolSearchSelect = React.forwardRef<
             placeholder={t("common.searchSchool")}
             value={searchText}
             onValueChange={setSearchText}
+            endAdornment={
+              isTyping ? (
+                <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+              ) : undefined
+            }
           />
           <CommandList>
-            {normalizedQuery.length === 1 ? (
+            {normalizedQuery.length === 0 && !isTyping ? (
               <p className="px-3 py-2 text-xs text-muted-foreground">
-                {t("common.minTwoChars")}
+                {t("common.schoolStartTyping")}
               </p>
             ) : null}
 

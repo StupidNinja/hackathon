@@ -14,6 +14,7 @@ import { getUserRole, isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { SchoolSearchSelect } from "@/common/components/school-search-select";
+import { UnsavedChangesDialog } from "@/common/components/unsaved-changes-dialog";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -40,6 +41,7 @@ import {
   SelectValue,
 } from "@/common/components/ui/select";
 import { usePageTitle } from "@/common/hooks/use-page-title";
+import { useUnsavedChanges } from "@/common/hooks/use-unsaved-changes";
 import { useI18n } from "@/common/i18n/use-i18n";
 
 const OTHER_SCHOOL_VALUE = "__other__";
@@ -69,7 +71,7 @@ export function OnboardingProfileView() {
             .trim()
             .min(1, t("validation.telegramRequired"))
             .max(64, t("validation.telegramTooLong")),
-          grade: z.enum(["10", "11"], { error: t("validation.selectGrade") }),
+          grade: z.enum(["9", "10", "11"], { error: t("validation.selectGrade") }),
           schoolSelection: z.string().min(1, t("validation.selectSchool")),
           customSchoolName: z.string().trim().max(120, t("validation.schoolNameTooLong")),
         })
@@ -111,8 +113,10 @@ export function OnboardingProfileView() {
   const {
     control,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = form;
+
+  const unsaved = useUnsavedChanges(isDirty);
 
   const profileQuery = useQuery({
     queryKey: ["onboarding", "profile", userId],
@@ -132,7 +136,7 @@ export function OnboardingProfileView() {
       lastName: profile.last_name ?? "",
       phone: profile.phone ?? "",
       telegram: profile.telegram ?? "",
-      grade: profile.grade === 11 ? "11" : "10",
+      grade: String(profile.grade) as "9" | "10" | "11",
       schoolSelection:
         profile.school_id ?? (profile.custom_school_name ? OTHER_SCHOOL_VALUE : ""),
       customSchoolName: profile.custom_school_name ?? "",
@@ -145,6 +149,7 @@ export function OnboardingProfileView() {
   const onSubmit = async (values: ProfileFormValues) => {
     if (!userId) {
       toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
       return;
     }
 
@@ -160,21 +165,32 @@ export function OnboardingProfileView() {
         lastName: values.lastName,
         phone: values.phone,
         telegram: values.telegram,
-        grade: values.grade === "11" ? 11 : 10,
+        grade: Number(values.grade) as 9 | 10 | 11,
         schoolId: values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
         customSchoolName:
           values.schoolSelection === OTHER_SCHOOL_VALUE ? values.customSchoolName : null,
       });
-      const team = await getTeamByCaptain(userId);
-      await queryClient.invalidateQueries({
-        queryKey: ["onboarding"],
-        refetchType: "all",
-      });
-      toast.success(t("onboarding.profile.toast.saved"));
-      void navigate(team ? "/dashboard" : "/team");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("toast.profileSaveFailed"));
+      return;
     }
+
+    // Profile is saved. Determine redirect — if this secondary fetch fails we
+    // still navigate to /team (the safe default), never show a "save failed" toast.
+    let team = null;
+    try {
+      team = await getTeamByCaptain(userId);
+    } catch {
+      // Non-critical: profile is already persisted. Fall through to /team.
+    }
+
+    await queryClient.invalidateQueries({
+      queryKey: ["onboarding"],
+      refetchType: "all",
+    });
+    toast.success(t("onboarding.profile.toast.saved"));
+    unsaved.confirmLeave();
+    void navigate(team ? "/dashboard" : "/team");
   };
 
   if (!userId) return null;
@@ -184,7 +200,12 @@ export function OnboardingProfileView() {
   }
 
   if (profileQuery.isError) {
-    return <ErrorScreen message={t("onboarding.profile.error")} />;
+    return (
+      <ErrorScreen
+        message={t("onboarding.profile.error")}
+        onRetry={() => void profileQuery.refetch()}
+      />
+    );
   }
 
   const profile = profileQuery.data;
@@ -295,6 +316,7 @@ export function OnboardingProfileView() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="9">9</SelectItem>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="11">11</SelectItem>
                       </SelectContent>
@@ -352,6 +374,11 @@ export function OnboardingProfileView() {
           </Form>
         </CardContent>
       </Card>
+      <UnsavedChangesDialog
+        open={unsaved.isBlocked}
+        onDiscard={unsaved.proceed}
+        onCancel={unsaved.reset}
+      />
     </div>
   );
 }

@@ -16,7 +16,7 @@ export function OnboardingEntryView() {
   const userId = user?.id ?? null;
   const userRole = getUserRole(user);
 
-  const { data, isPending, isFetching, isStale, isError } = useQuery({
+  const { data, isPending, isFetching, isStale, isError, refetch } = useQuery({
     queryKey: ["onboarding", "snapshot", userId],
     queryFn: () => getOnboardingSnapshot(userId),
     enabled: Boolean(userId),
@@ -31,7 +31,12 @@ export function OnboardingEntryView() {
   }
 
   if (isError || !data) {
-    return <ErrorScreen message={t("onboarding.entry.error")} />;
+    return (
+      <ErrorScreen
+        message={t("onboarding.entry.error")}
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (data.state === "NO_PROFILE") {

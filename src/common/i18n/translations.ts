@@ -23,6 +23,7 @@ export const translations = {
     "common.selectGrade": "Выберите класс",
     "common.searchSchool": "Поиск школы...",
     "common.minTwoChars": "Введите минимум 2 символа для поиска.",
+    "common.schoolStartTyping": "Начните вводить название школы.",
     "common.loadingSchools": "Загрузка школ...",
     "common.failedSchools": "Не удалось загрузить школы. Попробуйте снова.",
     "common.noSchoolsFound": "Школы не найдены.",
@@ -30,6 +31,7 @@ export const translations = {
     "common.toggleTheme": "Переключить тему",
     "common.signOut": "Выйти",
     "common.signingOut": "Выход...",
+    "common.retry": "Повторить",
     "notFound.page": "Страница не найдена.",
     "notFound.home": "На главную",
     "auth.subtitle": "Портал регистрации команд",
@@ -146,6 +148,8 @@ export const translations = {
       "{{additional}}/3 доп. участников ({{total}} всего с капитаном)",
     "settings.team.removeConfirm":
       "У участника {{index}} заполнены поля. Удалить его?",
+    "settings.team.removeMemberTitle": "Удалить участника?",
+    "settings.team.removeMemberConfirm": "Удалить",
     "settings.team.removeAria": "Удалить участника {{index}}",
     "settings.team.removeDisabledHint":
       "Нужен минимум один дополнительный участник",
@@ -205,12 +209,15 @@ export const translations = {
     "admin.staff.create.error": "Не удалось создать пользователя",
     "admin.staff.create.success": "Аккаунт создан для {{email}}",
     "admin.staff.password.title": "Аккаунт создан",
-    "admin.staff.password.desc": "Передайте следующий пароль пользователю {{name}}. После входа ему потребуется сменить пароль.",
-    "admin.staff.password.warning": "Сохраните пароль — он больше не будет показан.",
+    "admin.staff.password.desc":
+      "Передайте следующий пароль пользователю {{name}}. После входа ему потребуется сменить пароль.",
+    "admin.staff.password.warning":
+      "Сохраните пароль — он больше не будет показан.",
     "common.close": "Закрыть",
     "changePassword.pageTitle": "Смена пароля",
     "changePassword.title": "Задайте новый пароль",
-    "changePassword.desc": "Для продолжения необходимо сменить временный пароль.",
+    "changePassword.desc":
+      "Для продолжения необходимо сменить временный пароль.",
     "changePassword.newPassword": "Новый пароль",
     "changePassword.confirmPassword": "Подтверждение пароля",
     "changePassword.passwordMinLength": "Минимум 8 символов",
@@ -220,6 +227,8 @@ export const translations = {
     "changePassword.submit": "Сменить пароль",
     "changePassword.submitting": "Сохранение...",
     "changePassword.success": "Пароль успешно изменён",
+    "changePassword.flagClearFailed": "Пароль изменён, но не удалось снять ограничение. Нажмите \"Повторить\".",
+    "staff.profile.cardDesc": "Для сотрудников сохраняются только имя и фамилия.",
   },
 } as const;
 

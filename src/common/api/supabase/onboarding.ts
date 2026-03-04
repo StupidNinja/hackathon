@@ -34,6 +34,7 @@ export type SchoolRow = {
 export type SearchSchoolsInput = {
   query: string;
   limit?: number;
+  signal?: AbortSignal;
 };
 
 export type TeamRow = {
@@ -76,7 +77,7 @@ export type UpsertProfileInput = {
   lastName: string;
   phone?: string | null;
   telegram?: string | null;
-  grade: 10 | 11;
+  grade: 9 | 10 | 11;
   schoolId?: string | null;
   customSchoolName?: string | null;
 };
@@ -153,7 +154,7 @@ async function getStoredRole(userId: string): Promise<AppRole | null> {
     throw error;
   }
 
-  return ((data?.role as AppRole | null | undefined) ?? null);
+  return (data?.role as AppRole | null | undefined) ?? null;
 }
 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
@@ -184,16 +185,24 @@ export async function getActiveSchools(): Promise<SchoolRow[]> {
   return (data ?? []) as SchoolRow[];
 }
 
+/**
+ * Normalises common substitutions for the "№" (numero) sign so that students
+ * can type "#3", "No 3", "N°3", "школа 3" etc. and still find "Школа №3".
+ */
+function normalizeSchoolQuery(query: string): string {
+  return query
+    .replace(/#\s*/g, "№") // "#3"      → "№3"
+    .replace(/\bNo\.?\s*/gi, "№") // "No3", "No. 3" → "№3"
+    .replace(/[Nn]°\s*/g, "№") // "N°3"    → "№3"
+    .replace(/(\D)\s+(\d)/g, "$1 №$2"); // "школа 3" → "школа №3"
+}
+
 export async function searchActiveSchools(
   input: SearchSchoolsInput,
 ): Promise<SchoolRow[]> {
-  const normalizedQuery = input.query.trim();
+  const rawQuery = input.query.trim();
+  const normalizedQuery = normalizeSchoolQuery(rawQuery);
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
-
-  // Search with one character is intentionally skipped to avoid noisy queries.
-  if (normalizedQuery.length === 1) {
-    return [];
-  }
 
   let queryBuilder = supabase
     .from("schools")
@@ -207,6 +216,10 @@ export async function searchActiveSchools(
       "name_ru",
       `%${escapePostgresLikePattern(normalizedQuery)}%`,
     );
+  }
+
+  if (input.signal) {
+    queryBuilder = queryBuilder.abortSignal(input.signal);
   }
 
   const { data, error } = await queryBuilder;
@@ -412,136 +425,152 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
 }> {
   const normalizedTeamName = input.teamName.trim();
 
+  // Track whether we created a new team in this call so we can compensate on failure.
+  let newlyCreatedTeamId: string | null = null;
+
   let team = await getTeamByCaptain(input.captainId);
 
-  if (!team) {
-    const { data, error } = await supabase
-      .from("teams")
-      .insert({
-        name: normalizedTeamName,
-        captain_id: input.captainId,
-        is_registered: false,
-      })
-      .select(TEAM_COLUMNS)
-      .single();
+  try {
+    if (!team) {
+      const { data, error } = await supabase
+        .from("teams")
+        .insert({
+          name: normalizedTeamName,
+          captain_id: input.captainId,
+          is_registered: false,
+        })
+        .select(TEAM_COLUMNS)
+        .single();
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+      team = data as TeamRow;
+      newlyCreatedTeamId = team.id;
+    } else {
+      const { data, error } = await supabase
+        .from("teams")
+        .update({
+          name: normalizedTeamName,
+        })
+        .eq("id", team.id)
+        .select(TEAM_COLUMNS)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+      team = data as TeamRow;
     }
-    team = data as TeamRow;
-  } else {
-    const { data, error } = await supabase
+
+    const captainPayload = {
+      team_id: team.id,
+      user_id: input.captain.userId,
+      first_name: input.captain.firstName.trim(),
+      last_name: input.captain.lastName.trim(),
+      email: normalizeNullableText(input.captain.email),
+      phone: normalizeNullableText(input.captain.phone),
+      telegram: normalizeNullableText(input.captain.telegram),
+      is_captain: true,
+    };
+
+    // Upsert captain row: fetch existing id and update, or insert fresh.
+    const { data: existingCaptainRowsRaw, error: captainReadError } =
+      await supabase
+        .from("team_members")
+        .select("id")
+        .eq("team_id", team.id)
+        .eq("is_captain", true)
+        .limit(1);
+
+    if (captainReadError) {
+      throw captainReadError;
+    }
+
+    const existingCaptainRows = (existingCaptainRowsRaw ?? []) as Array<{
+      id: string;
+    }>;
+    const existingCaptainId = existingCaptainRows[0]?.id;
+
+    if (existingCaptainId) {
+      const { error } = await supabase
+        .from("team_members")
+        .update(captainPayload)
+        .eq("id", existingCaptainId);
+
+      if (error) {
+        throw error;
+      }
+    } else {
+      const { error } = await supabase
+        .from("team_members")
+        .insert(captainPayload);
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("team_members")
+      .delete()
+      .eq("team_id", team.id)
+      .eq("is_captain", false);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    const additionalMembersPayload = input.members.map((member) => ({
+      // `team` is always a TeamRow at this point (both branches above assign it or throw),
+      // but TypeScript doesn't narrow `let` inside arrow-function closures.
+      team_id: team!.id,
+      user_id: null,
+      first_name: member.firstName.trim(),
+      last_name: member.lastName.trim(),
+      email: normalizeNullableText(member.email),
+      phone: normalizeNullableText(member.phone),
+      telegram: normalizeNullableText(member.telegram),
+      is_captain: false,
+    }));
+
+    if (additionalMembersPayload.length > 0) {
+      const { error } = await supabase
+        .from("team_members")
+        .insert(additionalMembersPayload);
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    const totalMembers = 1 + additionalMembersPayload.length;
+
+    const { data: updatedTeam, error: updateTeamError } = await supabase
       .from("teams")
       .update({
-        name: normalizedTeamName,
+        members_count: totalMembers,
       })
       .eq("id", team.id)
       .select(TEAM_COLUMNS)
       .single();
 
-    if (error) {
-      throw error;
+    if (updateTeamError) {
+      throw updateTeamError;
     }
-    team = data as TeamRow;
-  }
 
-  const captainPayload = {
-    team_id: team.id,
-    user_id: input.captain.userId,
-    first_name: input.captain.firstName.trim(),
-    last_name: input.captain.lastName.trim(),
-    email: normalizeNullableText(input.captain.email),
-    phone: normalizeNullableText(input.captain.phone),
-    telegram: normalizeNullableText(input.captain.telegram),
-    is_captain: true,
-  };
+    const members = await getTeamMembers(team.id);
 
-  const { data: existingCaptainRowsRaw, error: captainReadError } =
-    await supabase
-      .from("team_members")
-      .select("id")
-      .eq("team_id", team.id)
-      .eq("is_captain", true)
-      .limit(1);
-
-  if (captainReadError) {
-    throw captainReadError;
-  }
-
-  const existingCaptainRows = (existingCaptainRowsRaw ?? []) as Array<{
-    id: string;
-  }>;
-  const existingCaptainId = existingCaptainRows[0]?.id;
-
-  if (existingCaptainId) {
-    const { error } = await supabase
-      .from("team_members")
-      .update(captainPayload)
-      .eq("id", existingCaptainId);
-
-    if (error) {
-      throw error;
+    return {
+      team: updatedTeam as TeamRow,
+      members,
+    };
+  } catch (err) {
+    // Compensation: if we created a new team row in this call, delete it so the
+    // user is not left with a partial/orphaned record and can safely retry.
+    if (newlyCreatedTeamId) {
+      await supabase.from("teams").delete().eq("id", newlyCreatedTeamId);
     }
-  } else {
-    const { error } = await supabase
-      .from("team_members")
-      .insert(captainPayload);
-
-    if (error) {
-      throw error;
-    }
+    throw err;
   }
-
-  const { error: deleteError } = await supabase
-    .from("team_members")
-    .delete()
-    .eq("team_id", team.id)
-    .eq("is_captain", false);
-
-  if (deleteError) {
-    throw deleteError;
-  }
-
-  const additionalMembersPayload = input.members.map((member) => ({
-    team_id: team.id,
-    user_id: null,
-    first_name: member.firstName.trim(),
-    last_name: member.lastName.trim(),
-    email: normalizeNullableText(member.email),
-    phone: normalizeNullableText(member.phone),
-    telegram: normalizeNullableText(member.telegram),
-    is_captain: false,
-  }));
-
-  if (additionalMembersPayload.length > 0) {
-    const { error } = await supabase
-      .from("team_members")
-      .insert(additionalMembersPayload);
-
-    if (error) {
-      throw error;
-    }
-  }
-
-  const totalMembers = 1 + additionalMembersPayload.length;
-
-  const { data: updatedTeam, error: updateTeamError } = await supabase
-    .from("teams")
-    .update({
-      members_count: totalMembers,
-    })
-    .eq("id", team.id)
-    .select(TEAM_COLUMNS)
-    .single();
-
-  if (updateTeamError) {
-    throw updateTeamError;
-  }
-
-  const members = await getTeamMembers(team.id);
-
-  return {
-    team: updatedTeam as TeamRow,
-    members,
-  };
 }

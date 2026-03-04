@@ -15,6 +15,7 @@ import {
 import { getUserRole, isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { UnsavedChangesDialog } from "@/common/components/unsaved-changes-dialog";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -35,7 +36,9 @@ import {
 import { Input } from "@/common/components/ui/input";
 import { PhoneInput } from "@/common/components/ui/phone-input";
 import { Separator } from "@/common/components/ui/separator";
+import { Skeleton } from "@/common/components/ui/skeleton";
 import { usePageTitle } from "@/common/hooks/use-page-title";
+import { useUnsavedChanges } from "@/common/hooks/use-unsaved-changes";
 import { useI18n } from "@/common/i18n/use-i18n";
 
 const createEmptyMember = () => ({
@@ -100,9 +103,11 @@ export function OnboardingTeamView() {
   const {
     control,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "members" });
+
+  const unsaved = useUnsavedChanges(isDirty);
 
   const profileQuery = useQuery({
     queryKey: ["onboarding", "profile", userId],
@@ -143,6 +148,7 @@ export function OnboardingTeamView() {
   const onSubmit = async (values: TeamFormValues) => {
     if (!user || !userId) {
       toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
       return;
     }
     const profile = profileQuery.data;
@@ -186,6 +192,7 @@ export function OnboardingTeamView() {
         refetchType: "all",
       });
       toast.success(t("onboarding.team.toast.saved"));
+      unsaved.confirmLeave();
       void navigate("/dashboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("toast.teamSaveFailed"));
@@ -194,12 +201,21 @@ export function OnboardingTeamView() {
 
   if (!userId) return null;
 
-  if (profileQuery.isPending || teamQuery.isPending || schoolsQuery.isPending) {
+  if (profileQuery.isPending) {
     return <LoadingScreen message={t("onboarding.team.loading")} />;
   }
 
-  if (profileQuery.isError || teamQuery.isError || schoolsQuery.isError) {
-    return <ErrorScreen message={t("onboarding.team.error")} />;
+  if (profileQuery.isError) {
+    return (
+      <ErrorScreen
+        message={t("onboarding.team.error")}
+        onRetry={() => {
+          void profileQuery.refetch();
+          void teamQuery.refetch();
+          void schoolsQuery.refetch();
+        }}
+      />
+    );
   }
 
   const profile = profileQuery.data;
@@ -301,7 +317,11 @@ export function OnboardingTeamView() {
                   <span className="text-xs font-medium text-muted-foreground">
                     {t("common.school")}
                   </span>
-                  <Input value={schoolName} disabled />
+                  {schoolsQuery.isPending ? (
+                    <Skeleton className="h-9 w-full" />
+                  ) : (
+                    <Input value={schoolName} disabled />
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -440,6 +460,11 @@ export function OnboardingTeamView() {
           </div>
         </form>
       </Form>
+      <UnsavedChangesDialog
+        open={unsaved.isBlocked}
+        onDiscard={unsaved.proceed}
+        onCancel={unsaved.reset}
+      />
     </div>
   );
 }
