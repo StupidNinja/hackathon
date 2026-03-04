@@ -28,6 +28,12 @@ export const signOut = () => supabase.auth.signOut();
 
 export const getSession = () => supabase.auth.getSession();
 
+export const verifyInviteTokenHash = (tokenHash: string) =>
+  supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "invite",
+  });
+
 export const onAuthStateChange = (
   callback: Parameters<typeof supabase.auth.onAuthStateChange>[0],
 ) => supabase.auth.onAuthStateChange(callback);

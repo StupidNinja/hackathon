@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { CalendarDays, LayoutDashboard, LogOut, Trophy } from "lucide-react";
-import { signOut } from "@/common/api/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { CalendarDays, LayoutDashboard, LogOut, Scale, ShieldCheck, Trophy, Users } from "lucide-react";
+import { signOut, getProfile } from "@/common/api/supabase";
+import { getDashboardPathForRole, getUserRole, isSuperAdmin } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Separator } from "@/common/components/ui/separator";
@@ -52,14 +54,36 @@ function getInitials({
 
 function AppSidebar() {
   const { t } = useI18n();
-  const navItems = [
-    { label: t("dashboard.nav.dashboard"), to: "/dashboard", icon: LayoutDashboard },
-    { label: t("dashboard.nav.hackathon"), to: "/hackathon", icon: CalendarDays },
-  ];
+  const user = useAuthStore((s) => s.user);
+  const role = getUserRole(user);
+  const dashboardPath = getDashboardPathForRole(role);
+  const userId = user?.id ?? null;
+
+  const profileQuery = useQuery({
+    queryKey: ["profile", userId],
+    queryFn: () => getProfile(userId!),
+    enabled: Boolean(userId) && role === "admin",
+    staleTime: 60_000,
+  });
+
+  const isUserSuperAdmin = isSuperAdmin(profileQuery.data);
+
+  const navItems = role === "admin"
+    ? [
+        { label: t("admin.nav.teams"), to: "/admin/teams", icon: Users },
+        ...(isUserSuperAdmin
+          ? [{ label: t("admin.nav.staff"), to: "/admin/staff", icon: ShieldCheck }]
+          : []),
+      ]
+    : role === "jury"
+      ? [{ label: t("dashboard.nav.dashboard"), to: dashboardPath, icon: Scale }]
+      : [
+          { label: t("dashboard.nav.dashboard"), to: dashboardPath, icon: LayoutDashboard },
+          { label: t("dashboard.nav.hackathon"), to: "/hackathon", icon: CalendarDays },
+        ];
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const location = useLocation();
-  const user = useAuthStore((s) => s.user);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const metadata = user?.user_metadata as
@@ -161,8 +185,13 @@ export function DashboardLayout() {
 
   const pageTitles: Record<string, string> = {
     "/dashboard": t("dashboard.nav.dashboard"),
+    "/admin/teams": t("admin.nav.teams"),
+    "/admin/staff": t("admin.nav.staff"),
+    "/admin/dashboard": t("dashboard.nav.dashboard"),
+    "/jury/dashboard": t("dashboard.nav.dashboard"),
     "/hackathon": t("hackathon.pageTitle"),
     "/settings/profile": t("dashboard.title.profile"),
+    "/staff/profile": t("dashboard.title.profile"),
     "/settings/team": t("dashboard.title.team"),
   };
 

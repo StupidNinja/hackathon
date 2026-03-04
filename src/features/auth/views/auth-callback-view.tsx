@@ -14,17 +14,15 @@ export function AuthCallbackView() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthReady) {
-      return;
-    }
+    if (!isAuthReady) return;
 
     if (session) {
       void navigate("/", { replace: true });
-      return;
+    } else {
+      void navigate("/auth", { replace: true });
     }
-
-    void navigate("/auth", { replace: true });
-  }, [isAuthReady, navigate, session]);
+  }, [isAuthReady, session, navigate]);
 
   return <LoadingScreen />;
 }
+

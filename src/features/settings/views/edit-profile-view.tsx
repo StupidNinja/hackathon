@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import {
   getProfile,
   upsertProfile,
 } from "@/common/api/supabase";
+import { getUserRole, isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { SchoolSearchSelect } from "@/common/components/school-search-select";
@@ -51,6 +52,7 @@ export function EditProfileView() {
   usePageTitle(t("settings.profile.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
+  const userRole = getUserRole(user);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -179,6 +181,12 @@ export function EditProfileView() {
       return;
     }
 
+    if (isStaffRole(profileQuery.data?.role ?? userRole)) {
+      toast.error(t("settings.profile.error"));
+      void navigate("/staff/profile");
+      return;
+    }
+
     try {
       await upsertProfile(userId, {
         firstName: values.firstName,
@@ -190,7 +198,6 @@ export function EditProfileView() {
           values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
         customSchoolName:
           values.schoolSelection === OTHER_SCHOOL_VALUE ? values.customSchoolName : null,
-        role: profileQuery.data?.role ?? "team",
       });
 
       await queryClient.invalidateQueries({
@@ -222,6 +229,14 @@ export function EditProfileView() {
         }}
       />
     );
+  }
+
+  if (!profileQuery.data && isStaffRole(userRole)) {
+    return <Navigate to="/staff/profile" replace />;
+  }
+
+  if (profileQuery.data?.role && profileQuery.data.role !== "team") {
+    return <Navigate to="/staff/profile" replace />;
   }
 
   const selectedSchoolFromProfile = profileQuery.data?.schools;

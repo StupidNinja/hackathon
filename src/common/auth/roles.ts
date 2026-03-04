@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import type { AppRole } from "@/common/api/supabase/onboarding";
+import type { AppRole, ProfileRow } from "@/common/api/supabase/onboarding";
 
 const APP_ROLES = new Set<AppRole>(["team", "admin", "jury"]);
 type StaffRole = Exclude<AppRole, "team">;
@@ -18,9 +18,13 @@ export function isStaffRole(role: AppRole | null | undefined): role is StaffRole
   return role === "admin" || role === "jury";
 }
 
+export function isSuperAdmin(profile: ProfileRow | null | undefined): boolean {
+  return profile?.is_super_admin === true;
+}
+
 export function getDashboardPathForRole(role: AppRole | null | undefined): string {
   if (role === "admin") {
-    return "/admin/dashboard";
+    return "/admin/teams";
   }
 
   if (role === "jury") {

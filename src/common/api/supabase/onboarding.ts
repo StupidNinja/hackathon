@@ -1,9 +1,11 @@
 import { supabase } from "./client";
 
 export type AppRole = "team" | "admin" | "jury";
+export type StaffRole = Exclude<AppRole, "team">;
 
 export type ProfileRow = {
   id: string;
+  email: string | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -12,6 +14,8 @@ export type ProfileRow = {
   school_id: string | null;
   custom_school_name: string | null;
   role: AppRole;
+  is_super_admin: boolean;
+  must_change_password: boolean;
   created_at: string;
   updated_at: string;
   schools: { id: string; name_ru: string } | null;
@@ -75,7 +79,12 @@ export type UpsertProfileInput = {
   grade: 10 | 11;
   schoolId?: string | null;
   customSchoolName?: string | null;
-  role?: AppRole;
+};
+
+export type UpsertStaffProfileInput = {
+  firstName: string;
+  lastName: string;
+  role: StaffRole;
 };
 
 export type CaptainMemberInput = {
@@ -103,7 +112,7 @@ export type SaveTeamInput = {
 };
 
 const PROFILE_COLUMNS =
-  "id,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,created_at,updated_at,schools(id,name_ru)";
+  "id,email,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,is_super_admin,must_change_password,created_at,updated_at,schools(id,name_ru)";
 const SCHOOL_COLUMNS = "id,code,name_ru,name_kz,name_en,is_active,created_at";
 const TEAM_COLUMNS =
   "id,name,captain_id,members_count,is_registered,status,created_at,updated_at";
@@ -123,6 +132,29 @@ const normalizeNullableText = (
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const createValidationError = (message: string): Error => {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = 400;
+  return error;
+};
+
+const isStaffRole = (role: AppRole | null | undefined): role is StaffRole =>
+  role === "admin" || role === "jury";
+
+async function getStoredRole(userId: string): Promise<AppRole | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data?.role as AppRole | null | undefined) ?? null);
+}
 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
   const { data, error } = await supabase
@@ -288,6 +320,13 @@ export async function upsertProfile(
   userId: string,
   input: UpsertProfileInput,
 ): Promise<ProfileRow> {
+  const storedRole = await getStoredRole(userId);
+  if (isStaffRole(storedRole)) {
+    throw createValidationError(
+      "Staff profiles can only update first and last name.",
+    );
+  }
+
   const schoolId = input.schoolId ?? null;
   const customSchoolName = schoolId
     ? null
@@ -302,7 +341,56 @@ export async function upsertProfile(
     grade: input.grade,
     school_id: schoolId,
     custom_school_name: customSchoolName,
-    role: input.role ?? "team",
+    role: storedRole ?? "team",
+  };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(payload, { onConflict: "id" })
+    .select(PROFILE_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as unknown as ProfileRow;
+}
+
+export async function upsertStaffProfile(
+  userId: string,
+  input: UpsertStaffProfileInput,
+): Promise<ProfileRow> {
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+
+  if (firstName.length === 0) {
+    throw createValidationError("First name is required.");
+  }
+
+  if (lastName.length === 0) {
+    throw createValidationError("Last name is required.");
+  }
+
+  if (!isStaffRole(input.role)) {
+    throw createValidationError("Staff role must be admin or jury.");
+  }
+
+  const storedRole = await getStoredRole(userId);
+  if (storedRole && storedRole !== input.role) {
+    throw createValidationError("Profile role does not match invited role.");
+  }
+
+  const payload = {
+    id: userId,
+    first_name: firstName,
+    last_name: lastName,
+    phone: null,
+    telegram: null,
+    grade: null,
+    school_id: null,
+    custom_school_name: null,
+    role: input.role,
   };
 
   const { data, error } = await supabase

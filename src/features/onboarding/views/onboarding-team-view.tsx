@@ -12,6 +12,7 @@ import {
   getTeamWithMembers,
   saveTeamWithMembers,
 } from "@/common/api/supabase";
+import { getUserRole, isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { Badge } from "@/common/components/ui/badge";
@@ -50,6 +51,7 @@ export function OnboardingTeamView() {
   usePageTitle(t("onboarding.team.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
+  const userRole = getUserRole(user);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -146,7 +148,12 @@ export function OnboardingTeamView() {
     const profile = profileQuery.data;
     if (!profile) {
       toast.error(t("toast.completeProfileFirst"));
-      void navigate("/profile");
+      void navigate(isStaffRole(userRole) ? "/staff/profile" : "/profile");
+      return;
+    }
+    if (profile.role !== "team") {
+      toast.error(t("settings.profile.error"));
+      void navigate("/staff/profile");
       return;
     }
     if (!user.email || !profile.phone || !profile.telegram) {
@@ -198,10 +205,10 @@ export function OnboardingTeamView() {
   const profile = profileQuery.data;
   const schools = schoolsQuery.data ?? [];
 
-  if (!profile) return <Navigate to="/profile" replace />;
+  if (!profile) return <Navigate to={isStaffRole(userRole) ? "/staff/profile" : "/profile"} replace />;
   if (!profile.first_name || !profile.last_name) return <Navigate to="/profile" replace />;
   if (!profile.phone || !profile.telegram) return <Navigate to="/profile" replace />;
-  if (profile.role !== "team") return <Navigate to="/dashboard" replace />;
+  if (profile.role !== "team") return <Navigate to="/staff/profile" replace />;
 
   const schoolName = profile.school_id
     ? (schools.find((s) => s.id === profile.school_id)?.name_ru ?? profile.school_id)

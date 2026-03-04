@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -10,6 +10,7 @@ import {
   getTeamByCaptain,
   upsertProfile,
 } from "@/common/api/supabase";
+import { getUserRole, isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { SchoolSearchSelect } from "@/common/components/school-search-select";
@@ -48,6 +49,7 @@ export function OnboardingProfileView() {
   usePageTitle(t("onboarding.profile.pageTitle"));
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
+  const userRole = getUserRole(user);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -145,6 +147,13 @@ export function OnboardingProfileView() {
       toast.error(t("toast.sessionExpired"));
       return;
     }
+
+    if (isStaffRole(profileQuery.data?.role ?? userRole)) {
+      toast.error(t("settings.profile.error"));
+      void navigate("/staff/profile");
+      return;
+    }
+
     try {
       await upsertProfile(userId, {
         firstName: values.firstName,
@@ -155,7 +164,6 @@ export function OnboardingProfileView() {
         schoolId: values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
         customSchoolName:
           values.schoolSelection === OTHER_SCHOOL_VALUE ? values.customSchoolName : null,
-        role: profileQuery.data?.role ?? "team",
       });
       const team = await getTeamByCaptain(userId);
       await queryClient.invalidateQueries({
@@ -177,6 +185,15 @@ export function OnboardingProfileView() {
 
   if (profileQuery.isError) {
     return <ErrorScreen message={t("onboarding.profile.error")} />;
+  }
+
+  const profile = profileQuery.data;
+  if (!profile && isStaffRole(userRole)) {
+    return <Navigate to="/staff/profile" replace />;
+  }
+
+  if (profile?.role && profile.role !== "team") {
+    return <Navigate to="/staff/profile" replace />;
   }
 
   const selectedSchoolFromProfile = profileQuery.data?.schools;

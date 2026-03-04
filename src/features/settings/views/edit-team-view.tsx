@@ -13,6 +13,7 @@ import {
   getTeamWithMembers,
   saveTeamWithMembers,
 } from "@/common/api/supabase";
+import { isStaffRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
 import { PhoneInput } from "@/common/components/ui/phone-input";
@@ -161,6 +162,11 @@ export function EditTeamView() {
       void navigate("/settings/profile");
       return;
     }
+    if (isStaffRole(profile.role)) {
+      toast.error(t("settings.profile.error"));
+      void navigate("/staff/profile");
+      return;
+    }
     if (!user.email || !profile.phone || !profile.telegram) {
       toast.error(t("toast.completeProfileContact"));
       void navigate("/settings/profile");
@@ -225,7 +231,7 @@ export function EditTeamView() {
   if (!profile) return <Navigate to="/settings/profile" replace />;
   if (!profile.first_name || !profile.last_name) return <Navigate to="/settings/profile" replace />;
   if (!profile.phone || !profile.telegram) return <Navigate to="/settings/profile" replace />;
-  if (profile.role !== "team") return <Navigate to="/dashboard" replace />;
+  if (profile.role !== "team") return <Navigate to="/staff/profile" replace />;
 
   return (
     <div className="space-y-4">
