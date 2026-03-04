@@ -13,6 +13,7 @@ import {
 } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { UnsavedChangesDialog } from "@/common/components/unsaved-changes-dialog";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -32,6 +33,7 @@ import {
 } from "@/common/components/ui/form";
 import { Input } from "@/common/components/ui/input";
 import { usePageTitle } from "@/common/hooks/use-page-title";
+import { useUnsavedChanges } from "@/common/hooks/use-unsaved-changes";
 import { useI18n } from "@/common/i18n/use-i18n";
 
 export function StaffProfileView() {
@@ -68,6 +70,8 @@ export function StaffProfileView() {
     formState: { isSubmitting, isDirty },
   } = form;
 
+  const unsaved = useUnsavedChanges(isDirty);
+
   const profileQuery = useQuery({
     queryKey: ["onboarding", "profile", userId],
     queryFn: () => getProfile(userId!),
@@ -89,6 +93,7 @@ export function StaffProfileView() {
   const onSubmit = async (values: StaffProfileFormValues) => {
     if (!userId) {
       toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
       return;
     }
 
@@ -118,6 +123,7 @@ export function StaffProfileView() {
       });
       toast.success(t("settings.profile.toast.saved"));
       reset(values);
+      unsaved.confirmLeave();
       void navigate(getDashboardPathForRole(effectiveRole));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("toast.profileSaveFailed"));
@@ -157,7 +163,7 @@ export function StaffProfileView() {
         <CardHeader>
           <CardTitle>{t("settings.profile.title")}</CardTitle>
           <CardDescription>
-            Staff profile includes only first and last name.
+            {t("staff.profile.cardDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -209,6 +215,11 @@ export function StaffProfileView() {
           </Form>
         </CardContent>
       </Card>
+      <UnsavedChangesDialog
+        open={unsaved.isBlocked}
+        onDiscard={unsaved.proceed}
+        onCancel={unsaved.reset}
+      />
     </div>
   );
 }

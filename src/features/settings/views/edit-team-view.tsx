@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +38,16 @@ import {
 } from "@/common/components/ui/form";
 import { Input } from "@/common/components/ui/input";
 import { Separator } from "@/common/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/common/components/ui/alert-dialog";
 import { useI18n } from "@/common/i18n/use-i18n";
 
 const createEmptyMember = () => ({
@@ -55,6 +65,9 @@ export function EditTeamView() {
   const userId = user?.id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  const [hasSubmitError, setHasSubmitError] = useState(false);
 
   const teamFormSchema = useMemo(() => {
     const requiredEmailSchema = z
@@ -111,7 +124,8 @@ export function EditTeamView() {
   const handleRemoveMember = (index: number) => {
     const values = form.getValues(`members.${index}`);
     const hasFilled = Object.values(values).some((v) => v.trim().length > 0);
-    if (hasFilled && !window.confirm(t("settings.team.removeConfirm", { index: index + 2 }))) {
+    if (hasFilled) {
+      setPendingRemoveIndex(index);
       return;
     }
     remove(index);
@@ -152,6 +166,7 @@ export function EditTeamView() {
   const onSubmit = async (values: TeamFormValues) => {
     if (!user || !userId) {
       toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
       return;
     }
 
@@ -174,6 +189,7 @@ export function EditTeamView() {
     }
 
     try {
+      setHasSubmitError(false);
       await saveTeamWithMembers({
         captainId: userId,
         teamName: values.teamName,
@@ -205,6 +221,7 @@ export function EditTeamView() {
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toast.teamSaveFailed");
       toast.error(message);
+      setHasSubmitError(true);
     }
   };
 
@@ -454,7 +471,7 @@ export function EditTeamView() {
 
           <Card className="shadow-sm">
             <CardFooter className="flex flex-wrap gap-3 border-t bg-muted/30 px-6 py-4 sm:sticky sm:bottom-0 sm:z-10">
-              <Button type="submit" disabled={isSubmitting || !isDirty}>
+              <Button type="submit" disabled={isSubmitting || (!isDirty && !hasSubmitError)}>
                 {isSubmitting && <Loader2 className="size-4 animate-spin" />}
                 {isSubmitting ? t("common.saving") : t("settings.team.saveTeam")}
               </Button>
@@ -465,6 +482,38 @@ export function EditTeamView() {
           </Card>
         </form>
       </Form>
+
+      {/* Confirm member removal — replaces blocking window.confirm */}
+      <AlertDialog
+        open={pendingRemoveIndex !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemoveIndex(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("settings.team.removeMemberTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRemoveIndex !== null
+                ? t("settings.team.removeConfirm", { index: pendingRemoveIndex + 2 })
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRemoveIndex !== null) {
+                  remove(pendingRemoveIndex);
+                  setPendingRemoveIndex(null);
+                }
+              }}
+            >
+              {t("settings.team.removeMemberConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

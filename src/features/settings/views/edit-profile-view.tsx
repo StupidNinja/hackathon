@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
@@ -72,7 +72,7 @@ export function EditProfileView() {
             .trim()
             .min(1, t("validation.telegramRequired"))
             .max(64, t("validation.telegramTooLong")),
-          grade: z.enum(["10", "11"], {
+          grade: z.enum(["9", "10", "11"], {
             error: t("validation.selectGrade"),
           }),
           schoolSelection: z.string().min(1, t("validation.selectSchool")),
@@ -122,6 +122,7 @@ export function EditProfileView() {
   } = form;
 
   const unsaved = useUnsavedChanges(isDirty);
+  const [hasSubmitError, setHasSubmitError] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ["onboarding", "profile", userId],
@@ -146,31 +147,22 @@ export function EditProfileView() {
       lastName: profile.last_name ?? "",
       phone: profile.phone ?? "",
       telegram: profile.telegram ?? "",
-      grade: profile.grade === 11 ? "11" : "10",
+      grade: String(profile.grade) as "9" | "10" | "11",
       schoolSelection: defaultSchoolSelection,
       customSchoolName: profile.custom_school_name ?? "",
     });
-  }, [emptyProfileFormValues, profileQuery.data, profileQuery.isSuccess, reset]);
 
-  useEffect(() => {
-    if (!profileQuery.isSuccess) return;
-    const profile = profileQuery.data;
-    if (!profile) return;
-
-    const desiredSchoolSelection =
-      profile.school_id ??
-      (profile.custom_school_name ? OTHER_SCHOOL_VALUE : "");
-
+    // If reset cleared schoolSelection (e.g. SchoolSearchSelect async fallback),
+    // apply it explicitly without marking the form as dirty.
     const currentSchoolSelection = getValues("schoolSelection");
-
-    if (!currentSchoolSelection && desiredSchoolSelection) {
-      setValue("schoolSelection", desiredSchoolSelection, {
+    if (!currentSchoolSelection && defaultSchoolSelection) {
+      setValue("schoolSelection", defaultSchoolSelection, {
         shouldDirty: false,
         shouldTouch: false,
         shouldValidate: false,
       });
     }
-  }, [getValues, profileQuery.data, profileQuery.isSuccess, setValue]);
+  }, [emptyProfileFormValues, getValues, profileQuery.data, profileQuery.isSuccess, reset, setValue]);
 
   const schoolSelection = useWatch({ control, name: "schoolSelection" });
   const showCustomSchoolInput = schoolSelection === OTHER_SCHOOL_VALUE;
@@ -178,6 +170,7 @@ export function EditProfileView() {
   const onSubmit = async (values: ProfileFormValues) => {
     if (!userId) {
       toast.error(t("toast.sessionExpired"));
+      void navigate("/auth", { replace: true });
       return;
     }
 
@@ -188,12 +181,13 @@ export function EditProfileView() {
     }
 
     try {
+      setHasSubmitError(false);
       await upsertProfile(userId, {
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone,
         telegram: values.telegram,
-        grade: values.grade === "11" ? 11 : 10,
+        grade: Number(values.grade) as 9 | 10 | 11,
         schoolId:
           values.schoolSelection === OTHER_SCHOOL_VALUE ? null : values.schoolSelection,
         customSchoolName:
@@ -211,6 +205,7 @@ export function EditProfileView() {
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toast.profileSaveFailed");
       toast.error(message);
+      setHasSubmitError(true);
     }
   };
 
@@ -345,6 +340,7 @@ export function EditProfileView() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="9">9</SelectItem>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="11">11</SelectItem>
                       </SelectContent>
@@ -396,7 +392,7 @@ export function EditProfileView() {
               )}
 
               <CardFooter className="flex flex-wrap gap-3 border-t bg-muted/30 px-6 py-4 sm:sticky sm:bottom-0 sm:z-10">
-                <Button type="submit" disabled={isSubmitting || !isDirty}>
+                <Button type="submit" disabled={isSubmitting || (!isDirty && !hasSubmitError)}>
                   {isSubmitting && <Loader2 className="size-4 animate-spin" />}
                   {isSubmitting ? t("common.saving") : t("settings.profile.saveChanges")}
                 </Button>
