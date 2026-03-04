@@ -106,10 +106,10 @@ export const translations = {
     "dashboard.status.unregistered": "Не зарегистрирована",
     "dashboard.status.cancelled": "Отменена",
     "dashboard.status.disqualified": "Дисквалифицирована",
-    "dashboard.telegram.title": "Официальный Telegram канал",
+    "dashboard.telegram.title": "Официальная Telegram беседа",
     "dashboard.telegram.desc":
-      "Присоединяйтесь к нашему каналу, чтобы получать актуальные новости, обновления и важные объявления о хакатоне.",
-    "dashboard.telegram.join": "Подписаться на канал",
+      "Присоединяйтесь к беседе участников! Задавайте вопросы, делитесь идеями, ищите сокомандников и получайте важные новости о хакатоне.",
+    "dashboard.telegram.join": "Присоединиться к беседе",
     "dashboard.nav.dashboard": "Дашборд",
     "dashboard.nav.hackathon": "Хакатон",
     "dashboard.nav.navigation": "Навигация",
