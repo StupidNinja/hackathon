@@ -20,7 +20,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:push": "npx supabase db push",
+    "db:reset": "npx supabase db reset",
+    "db:diff": "npx supabase db diff"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

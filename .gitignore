@@ -20,6 +20,7 @@ dist-ssr
 
 # AI tooling
 .github/copilot-instructions.md
+docs/
 
 # Editor directories and files
 .vscode/*
