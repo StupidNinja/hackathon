@@ -9,8 +9,12 @@ import { OnboardingLayout } from "@/common/layouts/onboarding-layout/onboarding-
 import { AuthCallbackView } from "@/features/auth/views/auth-callback-view";
 import { AuthView } from "@/features/auth/views/auth-view";
 import { AdminStaffView } from "@/features/admin/views/admin-staff-view";
+import { AdminTeamDetailsView } from "@/features/admin/views/admin-team-details-view";
 import { AdminTeamsView } from "@/features/admin/views/admin-teams-view";
+import { AdminCheckpointsReviewView } from "@/features/admin/views/admin-checkpoints-review-view";
+import { AdminSettingsView } from "@/features/admin/views/admin-settings-view";
 import { ChangePasswordView } from "@/features/settings/views/change-password-view";
+import { CheckpointFormView } from "@/features/hackathon/views/checkpoint-form-view";
 import { HackathonView } from "@/features/hackathon/views/hackathon-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
 import { JuryDashboardView } from "@/features/jury/views/jury-dashboard-view";
@@ -94,8 +98,20 @@ export const routes: RouteObject[] = [
                     element: <AdminTeamsView />,
                   },
                   {
+                    path: "teams/:teamId",
+                    element: <AdminTeamDetailsView />,
+                  },
+                  {
                     path: "staff",
                     element: <AdminStaffView />,
+                  },
+                  {
+                    path: "checkpoints",
+                    element: <AdminCheckpointsReviewView />,
+                  },
+                  {
+                    path: "settings",
+                    element: <AdminSettingsView />,
                   },
                 ],
               },
@@ -106,6 +122,10 @@ export const routes: RouteObject[] = [
               {
                 path: "hackathon",
                 element: <HackathonView />,
+              },
+              {
+                path: "hackathon/:cpCode",
+                element: <CheckpointFormView />,
               },
               {
                 path: "settings/profile",

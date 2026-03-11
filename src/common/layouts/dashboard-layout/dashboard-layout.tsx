@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, LayoutDashboard, LogOut, Scale, ShieldCheck, Trophy, Users } from "lucide-react";
+import { CalendarDays, LayoutDashboard, ListChecks, LogOut, Scale, Settings2, ShieldCheck, Trophy, Users } from "lucide-react";
+import { useHackathonTime } from "@/common/hooks/use-hackathon-time";
 import { signOut, getProfile } from "@/common/api/supabase";
 import { getDashboardPathForRole, getUserRole, isSuperAdmin } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
@@ -71,8 +72,12 @@ function AppSidebar() {
   const navItems = role === "admin"
     ? [
         { label: t("admin.nav.teams"), to: "/admin/teams", icon: Users },
+        { label: t("admin.nav.checkpoints"), to: "/admin/checkpoints", icon: ListChecks },
         ...(isUserSuperAdmin
-          ? [{ label: t("admin.nav.staff"), to: "/admin/staff", icon: ShieldCheck }]
+          ? [
+              { label: t("admin.nav.staff"), to: "/admin/staff", icon: ShieldCheck },
+              { label: t("admin.nav.settings"), to: "/admin/settings", icon: Settings2 },
+            ]
           : []),
       ]
     : role === "jury"
@@ -187,6 +192,8 @@ export function DashboardLayout() {
     "/dashboard": t("dashboard.nav.dashboard"),
     "/admin/teams": t("admin.nav.teams"),
     "/admin/staff": t("admin.nav.staff"),
+    "/admin/checkpoints": t("admin.checkpoints.pageTitle"),
+    "/admin/settings": t("admin.settings.pageTitle"),
     "/admin/dashboard": t("dashboard.nav.dashboard"),
     "/jury/dashboard": t("dashboard.nav.dashboard"),
     "/hackathon": t("hackathon.pageTitle"),
@@ -196,6 +203,8 @@ export function DashboardLayout() {
   };
 
   const title = pageTitles[location.pathname] ?? t("dashboard.nav.dashboard");
+  const timing = useHackathonTime();
+  const isDemoActive = !timing.isLoading && timing.demoMode;
 
   return (
     <SidebarProvider>
@@ -206,6 +215,13 @@ export function DashboardLayout() {
           <Separator orientation="vertical" className="mx-1 h-4" />
           <h1 className="text-sm font-semibold">{title}</h1>
         </header>
+        {isDemoActive && (
+          <div className="flex items-center justify-center gap-2 bg-amber-400/20 px-4 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 border-b border-amber-400/40">
+            {t("admin.settings.demoBanner", {
+              time: timing.virtualNow.toLocaleString("ru-RU"),
+            })}
+          </div>
+        )}
         <div className="flex flex-1 flex-col overflow-auto bg-muted/40 p-4 sm:p-6">
           <Outlet />
         </div>

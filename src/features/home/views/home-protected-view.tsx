@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
-import { Users, Send } from "lucide-react";
-import { getOnboardingSnapshot, getTeamWithMembers } from "@/common/api/supabase";
+import { Users, Send, AlertTriangle, Timer } from "lucide-react";
+import {
+  getOnboardingSnapshot,
+  getTeamWithMembers,
+  getDisqualificationByTeamId,
+} from "@/common/api/supabase";
 import {
   getDashboardPathForRole,
   getUserRole,
@@ -26,6 +30,7 @@ import {
   TableRow,
 } from "@/common/components/ui/table";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { useHackathonTime, formatTimeRemaining } from "@/common/hooks/use-hackathon-time";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
@@ -54,6 +59,19 @@ export function HomeProtectedView() {
       onboardingQuery.data?.state === "READY" &&
       onboardingQuery.data.profile?.role === "team",
   });
+
+  const disqualifTeamId = onboardingQuery.data?.team?.id;
+  const disqualifEnabled =
+    onboardingQuery.data?.profile?.role === "team" &&
+    onboardingQuery.data?.team?.status === "disqualified";
+
+  const disqualificationQuery = useQuery({
+    queryKey: ["team-disqualification", disqualifTeamId],
+    queryFn: () => getDisqualificationByTeamId(disqualifTeamId!),
+    enabled: Boolean(disqualifTeamId) && disqualifEnabled,
+  });
+
+  const timing = useHackathonTime();
 
   if (!userId) return null;
 
@@ -93,6 +111,8 @@ export function HomeProtectedView() {
   const firstName = profile?.first_name ?? "";
   const lastName = profile?.last_name ?? "";
 
+  const nextOpenCp = timing.checkpoints.find((cp) => cp.isOpen);
+
   const statusLabel = team?.is_registered
     ? t("dashboard.status.registered")
     : t("dashboard.status.unregistered");
@@ -105,6 +125,70 @@ export function HomeProtectedView() {
 
   return (
     <div className="space-y-5">
+      {/* Disqualification Banner */}
+      {isTeamProfile && team?.status === "disqualified" && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="size-5 text-destructive" />
+              <div>
+                <CardTitle className="text-base text-destructive">
+                  {t("dashboard.disqualification.title")}
+                </CardTitle>
+              </div>
+            </div>
+          </CardHeader>
+          {disqualificationQuery.data && (
+            <CardContent className="space-y-2">
+              <p className="text-sm">
+                <span className="font-medium">
+                  {t("dashboard.disqualification.reason")}:
+                </span>{" "}
+                {t(
+                  `admin.teams.disqualify.reason.${
+                    disqualificationQuery.data.reason_code
+                  }`
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {disqualificationQuery.data.admin_comment}
+              </p>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Next Checkpoint card */}
+      {isTeamProfile &&
+        timing.hasStarted &&
+        team?.status !== "disqualified" &&
+        nextOpenCp && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <Timer className="size-4 text-primary" />
+                <CardTitle className="text-base text-primary">
+                  {t("hackathon.dashboard.title")}
+                </CardTitle>
+              </div>
+              <CardDescription className="mt-1">{nextOpenCp.title}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              {nextOpenCp.timeRemainingMs > 0 && (
+                <span className="font-mono text-sm tabular-nums">
+                  {formatTimeRemaining(nextOpenCp.timeRemainingMs)}
+                </span>
+              )}
+              <Link
+                to={`/hackathon/${nextOpenCp.code}`}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {t("hackathon.dashboard.go")}
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
       <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
         <CardHeader>
           <CardTitle className="text-base">{t("dashboard.telegram.title")}</CardTitle>

@@ -345,10 +345,15 @@ export async function upsertProfile(
     ? null
     : normalizeNullableText(input.customSchoolName);
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const payload = {
     id: userId,
     first_name: input.firstName.trim(),
     last_name: input.lastName.trim(),
+    email: user?.email ?? null,
     phone: normalizeNullableText(input.phone),
     telegram: normalizeNullableText(input.telegram),
     grade: input.grade,
