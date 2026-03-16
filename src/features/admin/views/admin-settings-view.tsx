@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,14 @@ import { LoadingScreen } from "@/common/components/loading-screen";
 import { useHackathonTime } from "@/common/hooks/use-hackathon-time";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 import { useI18n } from "@/common/i18n/use-i18n";
+
+const settingsSchema = z.object({
+  t0: z.string().optional(),
+  demo_mode: z.boolean(),
+  demo_offset_minutes: z.number().int().min(0).max(99999),
+});
+
+type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 /** Convert ISO string (UTC) to local datetime-local input value */
 function isoToLocalInput(iso: string | null): string {
@@ -77,22 +85,10 @@ export function AdminSettingsView() {
 
   const timing = useHackathonTime();
 
-  const schema = useMemo(
-    () =>
-      z.object({
-        t0: z.string().optional(),
-        demo_mode: z.boolean(),
-        demo_offset_minutes: z.coerce.number().int().min(0).max(99999),
-      }),
-    [],
-  );
-
-  type FormValues = z.infer<typeof schema>;
-
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
     values: settingsQuery.data
       ? {
           t0: isoToLocalInput(settingsQuery.data.t0),
@@ -101,9 +97,10 @@ export function AdminSettingsView() {
         }
       : undefined,
   });
+  const demoModeEnabled = form.watch("demo_mode");
 
   const saveMutation = useMutation({
-    mutationFn: (values: FormValues) =>
+    mutationFn: (values: SettingsFormValues) =>
       updateHackathonSettings({
         t0: values.t0 ? localInputToIso(values.t0) : null,
         demo_mode: values.demo_mode,
@@ -119,7 +116,7 @@ export function AdminSettingsView() {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = (values: SettingsFormValues) => {
     saveMutation.mutate(values);
   };
 
@@ -241,8 +238,14 @@ export function AdminSettingsView() {
                         type="number"
                         min={0}
                         max={99999}
-                        disabled={saveMutation.isPending || !form.watch("demo_mode")}
-                        {...field}
+                        disabled={saveMutation.isPending || !demoModeEnabled}
+                        name={field.name}
+                        ref={field.ref}
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          field.onChange(event.target.valueAsNumber);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
