@@ -171,6 +171,7 @@ export function HackathonView() {
   );
 
   const rejectedDecision = decisions.find((d) => d.decision === "rejected");
+  const activeCheckpoint = timing.checkpoints.find((cp) => cp.isOpen) ?? null;
 
   // Not started state
   if (!timing.hasStarted) {
@@ -219,6 +220,22 @@ export function HackathonView() {
       )}
 
       {/* Timeline */}
+      {!teamDisqualified && activeCheckpoint && (
+        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20">
+          <CardHeader className="py-4">
+            <CardDescription>{t("hackathon.timeline.currentTitle")}</CardDescription>
+            <CardTitle className="text-base">{activeCheckpoint.title}</CardTitle>
+            {activeCheckpoint.timeRemainingMs > 0 && (
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                {t("hackathon.timeline.timeLeft", {
+                  time: formatTimeRemaining(activeCheckpoint.timeRemainingMs),
+                })}
+              </p>
+            )}
+          </CardHeader>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="border-b bg-muted/30 px-6 py-5">
           <CardTitle className="text-lg">{t("hackathon.timeline.title")}</CardTitle>
@@ -267,6 +284,22 @@ export function HackathonView() {
                             time: formatTimeRemaining(cp.timeRemainingMs),
                           })}
                         </span>
+                      )}
+                      {cp.isUpcoming && cp.openTime && (
+                        <>
+                          <span>
+                            {t("hackathon.timeline.startsAt", {
+                              time: dateFormatter.format(cp.openTime),
+                            })}
+                          </span>
+                          {cp.timeUntilOpenMs > 0 && (
+                            <span className="font-medium text-amber-600 dark:text-amber-400">
+                              {t("hackathon.timeline.startsIn", {
+                                time: formatTimeRemaining(cp.timeUntilOpenMs),
+                              })}
+                            </span>
+                          )}
+                        </>
                       )}
                       {submission?.submitted_at && (
                         <span className="text-green-600 dark:text-green-400">

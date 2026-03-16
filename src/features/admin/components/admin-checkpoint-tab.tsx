@@ -65,6 +65,7 @@ const CP_PAYLOAD_LABELS: Record<string, string> = {
 type Props = {
   teamId: string;
   teamName: string;
+  teamStatus: "registered" | "cancelled" | "disqualified";
   cpCode: CheckpointCode;
   submission: SubmissionRow | null;
   decision: CheckpointDecisionRow | null;
@@ -73,6 +74,7 @@ type Props = {
 export function AdminCheckpointTab({
   teamId,
   teamName,
+  teamStatus,
   cpCode,
   submission,
   decision,
@@ -102,7 +104,11 @@ export function AdminCheckpointTab({
     );
   }
 
-  const payload = submission.payload as Record<string, unknown>;
+  const payload = submission.payload;
+  const actionsLocked =
+    markMutation.isPending ||
+    teamStatus === "disqualified" ||
+    decision?.decision === "rejected";
 
   return (
     <div className="space-y-5">
@@ -170,7 +176,7 @@ export function AdminCheckpointTab({
         <Button
           size="sm"
           variant="secondary"
-          disabled={markMutation.isPending || decision?.decision === "under_review"}
+          disabled={actionsLocked || decision?.decision === "under_review"}
           onClick={() => markMutation.mutate("under_review")}
         >
           <Clock className="mr-1.5 size-3.5" />
@@ -180,7 +186,7 @@ export function AdminCheckpointTab({
           size="sm"
           variant="default"
           className="bg-green-600 hover:bg-green-700"
-          disabled={markMutation.isPending || decision?.decision === "advanced"}
+          disabled={actionsLocked || decision?.decision === "advanced"}
           onClick={() => markMutation.mutate("advanced")}
         >
           <CheckCircle2 className="mr-1.5 size-3.5" />
@@ -189,7 +195,7 @@ export function AdminCheckpointTab({
         <Button
           size="sm"
           variant="destructive"
-          disabled={markMutation.isPending}
+          disabled={actionsLocked}
           onClick={() => setShowRejectDialog(true)}
         >
           <XCircle className="mr-1.5 size-3.5" />

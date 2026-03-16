@@ -9,6 +9,14 @@ export type CheckpointCode = "cp0" | "cp1" | "cp2" | "cp3";
 export type SubmissionStatus = "draft" | "submitted";
 export type DecisionType = "under_review" | "advanced" | "rejected";
 
+const CHECKPOINT_ORDER: Record<CheckpointCode, number> = {
+  cp0: 0,
+  cp1: 1,
+  cp2: 2,
+  cp3: 3,
+};
+const CHECKPOINT_SEQUENCE: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
+
 export type HackathonSettingsRow = {
   id: number;
   t0: string | null; // ISO timestamptz, null = not started
@@ -233,6 +241,36 @@ export async function getDecisionsForCheckpoint(
   return (data ?? []) as CheckpointDecisionRow[];
 }
 
+type RejectedDecisionForFilter = Pick<
+  CheckpointDecisionRow,
+  "team_id" | "checkpoint_code"
+>;
+type SubmittedCheckpointForFilter = Pick<SubmissionRow, "team_id" | "checkpoint_code">;
+
+async function getRejectedDecisionsForAllCheckpoints(): Promise<
+  RejectedDecisionForFilter[]
+> {
+  const { data, error } = await supabase
+    .from("checkpoint_decisions")
+    .select("team_id, checkpoint_code")
+    .eq("decision", "rejected");
+  if (error) throw error;
+  return (data ?? []) as RejectedDecisionForFilter[];
+}
+
+async function getSubmittedCheckpointsForCodes(
+  cpCodes: CheckpointCode[],
+): Promise<SubmittedCheckpointForFilter[]> {
+  if (cpCodes.length === 0) return [];
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("team_id, checkpoint_code")
+    .in("checkpoint_code", cpCodes)
+    .eq("status", "submitted");
+  if (error) throw error;
+  return (data ?? []) as SubmittedCheckpointForFilter[];
+}
+
 export async function getDecisionsForTeamAdmin(
   teamId: string,
 ): Promise<CheckpointDecisionRow[]> {
@@ -264,10 +302,18 @@ export async function getSubmissionsForTeamAdmin(
 export async function getTeamCheckpointStatuses(
   cpCode: CheckpointCode,
 ): Promise<TeamCheckpointStatusRow[]> {
-  const [teams, submissions, decisions] = await Promise.all([
+  const selectedOrder = CHECKPOINT_ORDER[cpCode];
+  const priorCheckpointCodes = CHECKPOINT_SEQUENCE.filter(
+    (code) => CHECKPOINT_ORDER[code] < selectedOrder,
+  );
+
+  const [teams, submissions, decisions, rejectedDecisions, submittedPriorCheckpoints] =
+    await Promise.all([
     getTeamsWithCaptains(),
     getSubmissionsForCheckpoint(cpCode),
     getDecisionsForCheckpoint(cpCode),
+    getRejectedDecisionsForAllCheckpoints(),
+    getSubmittedCheckpointsForCodes(priorCheckpointCodes),
   ]);
 
   const submissionMap = new Map<string, SubmissionRow>(
@@ -276,8 +322,41 @@ export async function getTeamCheckpointStatuses(
   const decisionMap = new Map<string, CheckpointDecisionRow>(
     decisions.map((d) => [d.team_id, d]),
   );
+  const earliestRejectedOrderByTeam = new Map<string, number>();
+  for (const decision of rejectedDecisions) {
+    const order = CHECKPOINT_ORDER[decision.checkpoint_code];
+    const current = earliestRejectedOrderByTeam.get(decision.team_id);
+    if (current === undefined || order < current) {
+      earliestRejectedOrderByTeam.set(decision.team_id, order);
+    }
+  }
 
-  return teams.map((team) => ({
+  const submittedPriorCodesByTeam = new Map<string, Set<CheckpointCode>>();
+  for (const submission of submittedPriorCheckpoints) {
+    const submittedCodes = submittedPriorCodesByTeam.get(submission.team_id) ?? new Set();
+    submittedCodes.add(submission.checkpoint_code);
+    submittedPriorCodesByTeam.set(submission.team_id, submittedCodes);
+  }
+
+  const visibleTeams = teams.filter((team) => {
+    const submittedPriorCodes = submittedPriorCodesByTeam.get(team.id);
+    const reachedCurrentCheckpoint = priorCheckpointCodes.every((code) =>
+      submittedPriorCodes?.has(code),
+    );
+    if (!reachedCurrentCheckpoint) {
+      return false;
+    }
+
+    const rejectedOrder = earliestRejectedOrderByTeam.get(team.id);
+    if (rejectedOrder !== undefined) {
+      return rejectedOrder >= selectedOrder;
+    }
+    // Directly disqualified teams (without a checkpoint rejection) are not eligible
+    // for checkpoint review queues.
+    return team.status !== "disqualified";
+  });
+
+  return visibleTeams.map((team) => ({
     team,
     submission: submissionMap.get(team.id) ?? null,
     decision: decisionMap.get(team.id) ?? null,
@@ -302,6 +381,30 @@ export async function setCheckpointDecision(
   const userId = (await supabase.auth.getUser()).data.user?.id;
   if (!userId) throw new Error("Not authenticated");
 
+  const { data: team, error: teamFetchError } = await supabase
+    .from("teams")
+    .select("status")
+    .eq("id", teamId)
+    .maybeSingle();
+  if (teamFetchError) throw teamFetchError;
+  if (!team) throw new Error("Team not found");
+
+  if (team.status === "disqualified" && decision !== "rejected") {
+    throw new Error("Cannot change decision for a disqualified team");
+  }
+
+  const { data: currentDecision, error: currentDecisionError } = await supabase
+    .from("checkpoint_decisions")
+    .select("decision")
+    .eq("team_id", teamId)
+    .eq("checkpoint_code", cpCode)
+    .maybeSingle();
+  if (currentDecisionError) throw currentDecisionError;
+
+  if (currentDecision?.decision === "rejected" && decision !== "rejected") {
+    throw new Error("Cannot move a rejected team to another decision");
+  }
+
   // Upsert decision
   const { error: decisionError } = await supabase
     .from("checkpoint_decisions")
@@ -323,7 +426,7 @@ export async function setCheckpointDecision(
   if (decision === "rejected") {
     const { error: teamError } = await supabase
       .from("teams")
-      .update({ status: "disqualified" })
+      .update({ status: "disqualified", is_registered: false })
       .eq("id", teamId);
     if (teamError) throw teamError;
   }

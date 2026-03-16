@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 
-import { setCheckpointDecision } from "@/common/api/supabase";
+import { notifyRejection, setCheckpointDecision } from "@/common/api/supabase";
 import type { CheckpointCode } from "@/common/api/supabase";
 import { useI18n } from "@/common/i18n/use-i18n";
 import {
@@ -36,12 +36,12 @@ import {
 import { Textarea } from "@/common/components/ui/textarea";
 
 // CP-specific reject reason codes
-const CP_REASON_CODES: Record<CheckpointCode, string[]> = {
+const CP_REASON_CODES = {
   cp0: ["no_confirmation", "invalid_topic", "other"],
   cp1: ["incomplete_description", "missing_audience", "other"],
   cp2: ["invalid_repo", "no_implementation", "other"],
-  cp3: ["no_build", "no_presentation", "incomplete", "other"],
-};
+  cp3: ["no_build_or_presentation", "incomplete", "other"],
+} as const satisfies Record<CheckpointCode, readonly string[]>;
 
 type Props = {
   teamId: string;
@@ -66,8 +66,8 @@ export function AdminCpRejectDialog({
   const schema = useMemo(
     () =>
       z.object({
-        reasonCode: z.enum(reasonCodes as [string, ...string[]], {
-          required_error: t("validation.selectReasonRequired"),
+        reasonCode: z.enum(reasonCodes as unknown as [string, ...string[]], {
+          error: t("validation.selectReasonRequired"),
         }),
         adminComment: z
           .string()
@@ -87,7 +87,17 @@ export function AdminCpRejectDialog({
   const mutation = useMutation({
     mutationFn: ({ reasonCode, adminComment }: FormValues) =>
       setCheckpointDecision(teamId, cpCode, "rejected", reasonCode, adminComment),
-    onSuccess: () => {
+    onSuccess: (_data, values) => {
+      void notifyRejection({
+        teamId,
+        teamName,
+        cpCode,
+        reasonCode: values.reasonCode,
+        adminComment: values.adminComment,
+      }).catch(() => {
+        toast.warning(t("admin.checkpoints.reject.emailWarning"));
+      });
+
       toast.success(t("admin.checkpoints.reject.success"));
       void queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-team-details", teamId] });
@@ -124,7 +134,9 @@ export function AdminCpRejectDialog({
         <Form {...form}>
           <form
             id="cp-reject-form"
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={(event) => {
+              void form.handleSubmit(onSubmit)(event);
+            }}
             className="space-y-4"
           >
             <FormField

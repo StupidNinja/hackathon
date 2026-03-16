@@ -61,6 +61,7 @@ import {
 import { LoadingScreen, ErrorScreen } from "@/common/components/loading-screen";
 import { useHackathonTime, formatTimeRemaining } from "@/common/hooks/use-hackathon-time";
 import { useI18n } from "@/common/i18n/use-i18n";
+import type { TranslationKey } from "@/common/i18n/translations";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
 const VALID_CODES: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
@@ -85,7 +86,7 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
 // Zod schema builders per CP
 // ============================================================
 
-function buildCp0Schema(t: (k: string) => string) {
+function buildCp0Schema(t: (k: TranslationKey) => string) {
   return z.object({
     confirmed: z
       .boolean()
@@ -94,7 +95,7 @@ function buildCp0Schema(t: (k: string) => string) {
   });
 }
 
-function buildCp1Schema(t: (k: string) => string) {
+function buildCp1Schema(t: (k: TranslationKey) => string) {
   return z.object({
     short_description: z
       .string()
@@ -104,7 +105,7 @@ function buildCp1Schema(t: (k: string) => string) {
   });
 }
 
-function buildCp2Schema(t: (k: string) => string) {
+function buildCp2Schema(t: (k: TranslationKey) => string) {
   return z.object({
     git_url: z
       .string()
@@ -115,7 +116,7 @@ function buildCp2Schema(t: (k: string) => string) {
   });
 }
 
-function buildCp3Schema(t: (k: string) => string) {
+function buildCp3Schema(t: (k: TranslationKey) => string) {
   return z.object({
     build_link: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
     presentation_link: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
@@ -466,8 +467,12 @@ export function CheckpointFormView() {
   const isValidCode = VALID_CODES.includes(code);
 
   const cpTiming = timing.checkpoints.find((cp) => cp.code === code);
+  const activeCheckpoint = timing.checkpoints.find((cp) => cp.isOpen) ?? null;
+  const isUpcoming = cpTiming?.isUpcoming ?? false;
   const isLocked = cpTiming?.isLocked ?? false;
-  const readOnly = isLocked || !isCaptain || snapshotQuery.data?.team?.status === "disqualified";
+  const isCurrentCheckpointOpen = cpTiming?.isOpen ?? false;
+  const teamDisqualified = snapshotQuery.data?.team?.status === "disqualified";
+  const readOnly = !isCurrentCheckpointOpen || !isCaptain || teamDisqualified;
 
   const submissionQuery = useQuery({
     queryKey: ["submission", teamId, code],
@@ -654,6 +659,22 @@ export function CheckpointFormView() {
                     })}
                   </div>
                 )}
+                {isUpcoming && cpTiming.openTime && (
+                  <>
+                    <div>
+                      {t("hackathon.timeline.startsAt", {
+                        time: dateFormatter.format(cpTiming.openTime),
+                      })}
+                    </div>
+                    {cpTiming.timeUntilOpenMs > 0 && (
+                      <div className="font-medium text-amber-600 dark:text-amber-400">
+                        {t("hackathon.timeline.startsIn", {
+                          time: formatTimeRemaining(cpTiming.timeUntilOpenMs),
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -661,6 +682,27 @@ export function CheckpointFormView() {
 
         <CardContent className="space-y-4 pt-5">
           {/* Locked / disqualified notices */}
+          {isUpcoming && cpTiming?.openTime && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              {t("hackathon.form.notOpenYet", {
+                time: dateFormatter.format(cpTiming.openTime),
+              })}
+              {cpTiming.timeUntilOpenMs > 0 && (
+                <div className="mt-1 font-medium">
+                  {t("hackathon.timeline.startsIn", {
+                    time: formatTimeRemaining(cpTiming.timeUntilOpenMs),
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+          {!isUpcoming && !isLocked && !isCurrentCheckpointOpen && activeCheckpoint && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              {t("hackathon.form.onlyCurrentOpen", {
+                title: activeCheckpoint.title,
+              })}
+            </div>
+          )}
           {isLocked && (
             <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/30 p-3 text-sm text-muted-foreground">
               <Lock className="size-4 shrink-0" />
@@ -672,7 +714,7 @@ export function CheckpointFormView() {
               {t("hackathon.form.notCaptain")}
             </div>
           )}
-          {snapshotQuery.data?.team?.status === "disqualified" && (
+          {teamDisqualified && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
               {t("hackathon.form.disqualified")}
             </div>

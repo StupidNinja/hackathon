@@ -6,12 +6,13 @@ import type { CheckpointCode } from "@/common/api/supabase";
 export type CheckpointTiming = {
   code: CheckpointCode;
   title: string;
-  openTime: Date | null;
+  openTime: Date | null; // effective open time (sequential, non-overlapping windows)
   dueTime: Date | null;
   isUpcoming: boolean; // t0 not set, or virtual_now < openTime
   isOpen: boolean; // openTime <= virtual_now <= dueTime
   isLocked: boolean; // virtual_now > dueTime
   timeRemainingMs: number; // ms until due time (0 if locked/upcoming)
+  timeUntilOpenMs: number; // ms until open time (0 if already open/locked)
 };
 
 export type HackathonTimingResult = {
@@ -82,23 +83,41 @@ export function useHackathonTime(): HackathonTimingResult {
   const hasStarted = t0 !== null && virtualNow >= t0;
 
   const checkpoints = useMemo<CheckpointTiming[]>(() => {
-    const cpRows = checkpointsQuery.data ?? [];
+    const cpRows = [...(checkpointsQuery.data ?? [])].sort(
+      (a, b) => a.due_offset_minutes - b.due_offset_minutes,
+    );
+
+    let previousDueTime: Date | null = null;
+
     return cpRows.map((cp) => {
-      const openTime = t0
+      const baseOpenTime = t0
         ? new Date(t0.getTime() + cp.open_offset_minutes * 60 * 1000)
         : null;
       const dueTime = t0
         ? new Date(t0.getTime() + cp.due_offset_minutes * 60 * 1000)
         : null;
 
-      const isUpcoming =
-        openTime === null || virtualNow < openTime;
+      const openTime =
+        baseOpenTime && previousDueTime
+          ? new Date(Math.max(baseOpenTime.getTime(), previousDueTime.getTime()))
+          : baseOpenTime;
+
+      if (dueTime) {
+        previousDueTime = dueTime;
+      }
+
+      const isUpcoming = openTime === null || virtualNow < openTime;
       const isLocked = dueTime !== null && virtualNow > dueTime;
       const isOpen = !isUpcoming && !isLocked;
 
       const timeRemainingMs =
         dueTime && isOpen
           ? Math.max(0, dueTime.getTime() - virtualNow.getTime())
+          : 0;
+
+      const timeUntilOpenMs =
+        openTime && isUpcoming
+          ? Math.max(0, openTime.getTime() - virtualNow.getTime())
           : 0;
 
       return {
@@ -110,6 +129,7 @@ export function useHackathonTime(): HackathonTimingResult {
         isOpen,
         isLocked,
         timeRemainingMs,
+        timeUntilOpenMs,
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

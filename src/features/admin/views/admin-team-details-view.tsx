@@ -401,6 +401,7 @@ export function AdminTeamDetailsView() {
             <AdminCheckpointTab
               teamId={team.id}
               teamName={team.name}
+              teamStatus={team.status}
               cpCode={code}
               submission={getSubmissionForCp(code)}
               decision={getDecisionForCp(code)}

@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 
-import { disqualifyTeam } from "@/common/api/supabase";
+import { disqualifyTeam, notifyRejection } from "@/common/api/supabase";
 import { useI18n } from "@/common/i18n/use-i18n";
 import {
   AlertDialog,
@@ -79,7 +79,17 @@ export function AdminDisqualifyDialog({
   const mutation = useMutation({
     mutationFn: ({ reasonCode, adminComment }: FormValues) =>
       disqualifyTeam(teamId, reasonCode, adminComment),
-    onSuccess: () => {
+    onSuccess: (_data, values) => {
+      void notifyRejection({
+        teamId,
+        teamName,
+        cpCode: null,
+        reasonCode: values.reasonCode,
+        adminComment: values.adminComment,
+      }).catch(() => {
+        toast.warning(t("admin.teams.disqualify.emailWarning"));
+      });
+
       toast.success(t("admin.teams.disqualify.success"));
       void queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
       void queryClient.invalidateQueries({ queryKey: ["admin-team-details", teamId] });

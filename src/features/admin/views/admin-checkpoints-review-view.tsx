@@ -107,6 +107,10 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
   });
 
   const hasSubmission = row.submission?.status === "submitted";
+  const actionsLocked =
+    markMutation.isPending ||
+    row.team.status === "disqualified" ||
+    row.decision?.decision === "rejected";
 
   return (
     <div className="flex items-center gap-1">
@@ -124,10 +128,7 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs"
-            disabled={
-              markMutation.isPending ||
-              row.decision?.decision === "advanced"
-            }
+            disabled={actionsLocked || row.decision?.decision === "advanced"}
             onClick={() => markMutation.mutate("advanced")}
           >
             {t("admin.checkpoints.actions.advanced")}
@@ -136,7 +137,7 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
             size="sm"
             variant="ghost"
             className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-            disabled={markMutation.isPending}
+            disabled={actionsLocked}
             onClick={() => onReject(row.team.id, row.team.name)}
           >
             {t("admin.checkpoints.actions.reject")}
