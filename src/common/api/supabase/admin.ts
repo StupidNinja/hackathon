@@ -1,4 +1,4 @@
-﻿import { supabase } from "./client";
+import { supabase } from "./client";
 import { type ProfileRow, type TeamMemberRow } from "./onboarding";
 
 export type StaffUserRow = Pick<
@@ -40,6 +40,20 @@ export type DisqualificationRow = {
     first_name: string | null;
     last_name: string | null;
   };
+};
+
+type NotifyRejectionCheckpointCode = "cp0" | "cp1" | "cp2" | "cp3";
+
+export type NotifyRejectionInput = {
+  teamId: string;
+  teamName: string;
+  cpCode: NotifyRejectionCheckpointCode | null;
+  reasonCode: string;
+  adminComment: string;
+};
+
+type NotifyRejectionResult = {
+  ok: true;
 };
 
 type RawCaptainProfile = {
@@ -112,6 +126,20 @@ const CAPTAIN_PROFILE_COLUMNS =
 
 const DISQUALIFICATION_COLUMNS =
   "id,team_id,reason_code,admin_comment,created_by,created_at";
+
+async function getAccessTokenOrThrow(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw error;
+  }
+
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error("No active session. Please sign in again.");
+  }
+
+  return token;
+}
 
 export async function getStaffUsers(): Promise<StaffUserRow[]> {
   const { data, error } = await supabase
@@ -238,4 +266,56 @@ export async function disqualifyTeam(
     .update({ status: "disqualified", is_registered: false })
     .eq("id", teamId);
   if (updateError) throw updateError;
+}
+
+export async function notifyRejection(
+  input: NotifyRejectionInput,
+): Promise<NotifyRejectionResult> {
+  const accessToken = await getAccessTokenOrThrow();
+
+  const response = await supabase.functions.invoke<NotifyRejectionResult>(
+    "notify_rejection",
+    {
+      body: {
+        ...input,
+        accessToken,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (response.error) {
+    let message: string | undefined;
+    const responseError = response.error;
+    const responseMessage =
+      typeof responseError.message === "string" ? responseError.message : undefined;
+    const httpError =
+      typeof responseError === "object" &&
+      responseError !== null &&
+      "context" in responseError
+        ? (responseError as { context?: Response })
+        : null;
+    if (httpError?.context) {
+      try {
+        const body: unknown = await httpError.context.json();
+        if (typeof body === "object" && body !== null && "error" in body) {
+          const bodyError = body.error;
+          if (typeof bodyError === "string") {
+            message = bodyError;
+          }
+        }
+      } catch {
+        // body not parseable as JSON — fall through
+      }
+    }
+    throw new Error(message ?? responseMessage ?? "notify_rejection failed");
+  }
+
+  if (!response.data) {
+    throw new Error("Empty response from notify_rejection");
+  }
+
+  return response.data;
 }

@@ -10,6 +10,8 @@ type CreateStaffUserRequest = {
   accessToken?: unknown;
 };
 
+type AppRole = "team" | "admin" | "jury";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -56,6 +58,14 @@ const extractBearerToken = (headerValue: string | null): string | null => {
   if (!match) return null;
   const token = match[1].trim();
   return token.length > 0 ? token : null;
+};
+
+const asAppRole = (value: unknown): AppRole | null => {
+  if (value === "team" || value === "admin" || value === "jury") {
+    return value;
+  }
+
+  return null;
 };
 
 Deno.serve(async (req) => {
@@ -113,11 +123,42 @@ Deno.serve(async (req) => {
     return json(401, { error: "Unauthorized" });
   }
 
-  const callerRole = (caller.app_metadata as { role?: unknown } | undefined)
-    ?.role;
-  const callerIsSuperAdmin =
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const metadataRole = asAppRole(
+    (caller.app_metadata as { role?: unknown } | undefined)?.role,
+  );
+  const metadataIsSuperAdmin =
     (caller.app_metadata as { is_super_admin?: unknown } | undefined)
       ?.is_super_admin === true;
+
+  const { data: callerProfile, error: callerProfileError } = await adminClient
+    .from("profiles")
+    .select("role,is_super_admin")
+    .eq("id", caller.id)
+    .maybeSingle();
+
+  if (callerProfileError) {
+    return json(500, { error: callerProfileError.message });
+  }
+
+  const profileRole = asAppRole(callerProfile?.role);
+  const callerRole = metadataRole ?? profileRole;
+  const callerIsSuperAdmin =
+    metadataIsSuperAdmin || callerProfile?.is_super_admin === true;
+
+  // Best-effort self-heal for future requests if metadata is stale.
+  if (callerRole && (metadataRole !== callerRole || metadataIsSuperAdmin !== callerIsSuperAdmin)) {
+    await adminClient.auth.admin.updateUserById(caller.id, {
+      app_metadata: {
+        ...(caller.app_metadata ?? {}),
+        role: callerRole,
+        is_super_admin: callerIsSuperAdmin,
+      },
+    });
+  }
 
   if (callerRole !== "admin") {
     return json(403, { error: "Only admin users can create staff accounts" });
@@ -126,10 +167,6 @@ Deno.serve(async (req) => {
   if (role === "admin" && !callerIsSuperAdmin) {
     return json(403, { error: "Only super admins can create admin accounts" });
   }
-
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const password = generatePassword();
 
