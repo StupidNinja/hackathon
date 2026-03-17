@@ -7,6 +7,7 @@ import {
   getTeamById,
   getTeamMembersForAdmin,
   getDisqualificationByTeamId,
+  getJurySummaryForTeam,
   getSubmissionsForTeamAdmin,
   getDecisionsForTeamAdmin,
 } from "@/common/api/supabase";
@@ -116,6 +117,14 @@ export function AdminTeamDetailsView() {
     },
     enabled: !!teamId,
   });
+  const jurySummaryQuery = useQuery({
+    queryKey: ["team-jury-summary", teamId],
+    queryFn: () => {
+      if (!teamId) return Promise.reject(new Error("No teamId"));
+      return getJurySummaryForTeam(teamId);
+    },
+    enabled: !!teamId,
+  });
 
   usePageTitle(
     teamQuery.data
@@ -200,6 +209,7 @@ export function AdminTeamDetailsView() {
           <TabsTrigger value="info">
             {t("admin.teams.details.tabs.info")}
           </TabsTrigger>
+          <TabsTrigger value="jury">Жюри</TabsTrigger>
           {CP_CODES.map((code) => (
             <TabsTrigger key={code} value={code}>
               {code.toUpperCase()}
@@ -394,6 +404,109 @@ export function AdminTeamDetailsView() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="jury" className="space-y-5 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Сводка жюри</CardTitle>
+              <CardDescription>
+                Независимые оценки членов жюри для команды {team.name}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {jurySummaryQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : jurySummaryQuery.isError || !jurySummaryQuery.data ? (
+                <p className="text-sm text-destructive">
+                  Не удалось загрузить сводку жюри.
+                </p>
+              ) : jurySummaryQuery.data.assessment_count === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  У этой команды пока нет оценок жюри.
+                </p>
+              ) : (
+                <>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-lg border p-4">
+                      <div className="text-xs text-muted-foreground">Оценок</div>
+                      <div className="mt-1 text-2xl font-semibold">
+                        {jurySummaryQuery.data.assessment_count}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="text-xs text-muted-foreground">Средний итог</div>
+                      <div className="mt-1 text-2xl font-semibold">
+                        {jurySummaryQuery.data.total_average?.toFixed(2) ?? "—"} /{" "}
+                        {jurySummaryQuery.data.max_total}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="text-xs text-muted-foreground">Критериев</div>
+                      <div className="mt-1 text-2xl font-semibold">
+                        {jurySummaryQuery.data.criteria.length}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium">Средние баллы по критериям</h3>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {jurySummaryQuery.data.criteria.map((criterion) => (
+                        <div key={criterion.criterion_id} className="rounded-lg border p-4">
+                          <div className="font-medium">{criterion.title}</div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {criterion.average_score?.toFixed(2) ?? "—"} /{" "}
+                            {criterion.max_points}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium">Оценки по членам жюри</h3>
+                    {jurySummaryQuery.data.assessments.map((entry) => (
+                      <div key={entry.assessment.id} className="rounded-lg border p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <div className="font-medium">
+                              {entry.jury?.first_name ?? "Жюри"}{" "}
+                              {entry.jury?.last_name ?? ""}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Обновлено{" "}
+                              {new Date(entry.assessment.updated_at).toLocaleString("ru-RU")}
+                            </div>
+                          </div>
+                          <Badge variant="secondary">
+                            {entry.total_score} / {jurySummaryQuery.data.max_total}
+                          </Badge>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          {entry.scores.map((score) => (
+                            <div key={score.criterion_id} className="rounded-md bg-muted/40 p-3">
+                              <div className="text-sm font-medium">{score.title}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {score.score ?? "—"} / {score.max_points}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {entry.assessment.overall_comment && (
+                          <div className="mt-3 rounded-md border bg-muted/20 p-3 text-sm whitespace-pre-wrap">
+                            {entry.assessment.overall_comment}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {CP_CODES.map((code) => (
