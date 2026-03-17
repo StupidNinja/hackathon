@@ -164,21 +164,19 @@ export async function getJuryFinalistQueue(): Promise<JuryQueueRow[]> {
   );
 
   return teams
-    .filter((team) => team.status !== "disqualified")
+    .filter((team) => {
+      if (team.status === "disqualified") {
+        return false;
+      }
+
+      // Jury queue only includes teams that passed CP3 and submitted CP3.
+      return decisionMap.has(team.id) && submissionMap.has(team.id);
+    })
     .map((team) => ({
       team,
-      submission: submissionMap.get(team.id) ?? null,
-      decision: decisionMap.get(team.id) ?? null,
+      submission: submissionMap.get(team.id) as SubmissionRow,
+      decision: decisionMap.get(team.id) as CheckpointDecisionRow,
     }))
-    .filter(
-      (
-        row,
-      ): row is {
-        team: TeamWithCaptainRow;
-        submission: SubmissionRow;
-        decision: CheckpointDecisionRow;
-      } => row.submission !== null && row.decision !== null,
-    )
     .sort((left, right) => left.team.name.localeCompare(right.team.name, "ru"));
 }
 

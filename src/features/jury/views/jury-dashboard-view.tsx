@@ -593,7 +593,7 @@ export function JuryDashboardView() {
             </CardTitle>
             <CardDescription>
               В очередь жюри попадают только команды с отправленным CP3 и
-              решением `advanced` на CP3.
+              решением «прошли дальше» на CP3.
             </CardDescription>
           </CardHeader>
         </Card>
