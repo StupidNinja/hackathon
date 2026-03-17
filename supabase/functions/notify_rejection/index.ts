@@ -21,32 +21,13 @@ type CaptainProfileRow = {
   email: string | null;
 };
 
+type RejectionTemplateRow = {
+  label: string | null;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const CP_REASON_LABELS: Record<CheckpointCode, Record<string, string>> = {
-  cp0: {
-    no_confirmation: "Не подтверждено участие",
-    invalid_topic: "Некорректная тема",
-    other: "Другое",
-  },
-  cp1: {
-    incomplete_description: "Нет описания/не соответствует формату",
-    missing_audience: "Не указана аудитория",
-    other: "Другое",
-  },
-  cp2: {
-    invalid_repo: "Нет репозитория/нет доступа",
-    no_implementation: "Нет реализации",
-    other: "Другое",
-  },
-  cp3: {
-    no_build_or_presentation: "Нет финальной сборки/презентации",
-    incomplete: "Неполная сдача",
-    other: "Другое",
-  },
 };
 
 const DIRECT_DISQUALIFICATION_REASON_LABELS: Record<string, string> = {
@@ -130,16 +111,6 @@ const escapeHtml = (value: string): string =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-
-const resolveReasonLabel = (
-  cpCode: CheckpointCode | null,
-  reasonCode: string,
-): string => {
-  if (cpCode) {
-    return CP_REASON_LABELS[cpCode][reasonCode] ?? reasonCode;
-  }
-  return DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode] ?? reasonCode;
-};
 
 const renderRejectionHtml = (params: {
   teamName: string;
@@ -347,7 +318,22 @@ Deno.serve(async (req) => {
     return json(404, { error: "Captain email is missing or invalid" });
   }
 
-  const reasonLabel = resolveReasonLabel(cpCode, reasonCode);
+  let reasonLabel = DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode] ?? reasonCode;
+  if (cpCode) {
+    const { data: templateRow, error: templateError } = await adminClient
+      .from("checkpoint_rejection_templates")
+      .select("label")
+      .eq("checkpoint_code", cpCode)
+      .eq("code", reasonCode)
+      .maybeSingle();
+
+    if (templateError) {
+      return json(500, { error: templateError.message });
+    }
+
+    reasonLabel = (templateRow as RejectionTemplateRow | null)?.label ?? reasonCode;
+  }
+
   const checkpointLabel = cpCode ? cpCode.toUpperCase() : "Прямая дисквалификация";
 
   const transporter = nodemailer.createTransport({
