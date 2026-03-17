@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { UserPlus, Copy, Check } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import { getStaffUsers } from "@/common/api/supabase";
 import { createStaffUser } from "@/common/api/supabase";
 import { useAdminContext } from "@/common/layouts/admin-guard-layout/admin-guard-layout";
@@ -143,6 +144,10 @@ export function AdminStaffView() {
 
   const roleLabel = (role: StaffRole) =>
     role === "admin" ? t("admin.staff.roles.admin") : t("admin.staff.roles.jury");
+
+  if (!isSuperAdmin) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
 
   return (
     <div className="space-y-5">
@@ -352,7 +357,7 @@ function StaffSection({ title, users, isLoading, isError, onAdd }: StaffSectionP
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
           <Button size="sm" variant="outline" onClick={onAdd}>
             <UserPlus className="mr-2 size-4" />
@@ -375,30 +380,46 @@ function StaffSection({ title, users, isLoading, isError, onAdd }: StaffSectionP
           <p className="text-sm text-muted-foreground">{t("admin.staff.list.empty")}</p>
         )}
         {!isLoading && !isError && users.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("admin.staff.table.name")}</TableHead>
-                <TableHead>{t("admin.staff.table.email")}</TableHead>
-                <TableHead className="hidden sm:table-cell">
-                  {t("admin.staff.table.created")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <div className="space-y-3 md:hidden">
               {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
+                <div key={user.id} className="rounded-lg border p-3">
+                  <p className="text-sm font-medium">
                     {[user.first_name, user.last_name].filter(Boolean).join(" ") || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{user.email ?? "—"}</TableCell>
-                  <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                    {formatDate(user.created_at)}
-                  </TableCell>
-                </TableRow>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{user.email ?? "—"}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t("admin.staff.table.created")}: {formatDate(user.created_at)}
+                  </p>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("admin.staff.table.name")}</TableHead>
+                    <TableHead>{t("admin.staff.table.email")}</TableHead>
+                    <TableHead>{t("admin.staff.table.created")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {[user.first_name, user.last_name].filter(Boolean).join(" ") || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{user.email ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(user.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

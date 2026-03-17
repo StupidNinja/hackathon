@@ -2,7 +2,18 @@ import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, LayoutDashboard, ListChecks, LogOut, Scale, Settings2, ShieldCheck, Trophy, Users } from "lucide-react";
+import {
+  CalendarDays,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Scale,
+  Settings2,
+  ShieldCheck,
+  Trophy,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useHackathonTime } from "@/common/hooks/use-hackathon-time";
 import { signOut, getProfile } from "@/common/api/supabase";
 import { getDashboardPathForRole, getUserRole, isSuperAdmin } from "@/common/auth/roles";
@@ -71,6 +82,11 @@ function AppSidebar() {
 
   const navItems = role === "admin"
     ? [
+        {
+          label: t("dashboard.nav.dashboard"),
+          to: "/admin/dashboard",
+          icon: LayoutDashboard,
+        },
         { label: t("admin.nav.teams"), to: "/admin/teams", icon: Users },
         { label: t("admin.nav.checkpoints"), to: "/admin/checkpoints", icon: ListChecks },
         ...(isUserSuperAdmin
@@ -85,6 +101,8 @@ function AppSidebar() {
       : [
           { label: t("dashboard.nav.dashboard"), to: dashboardPath, icon: LayoutDashboard },
           { label: t("dashboard.nav.hackathon"), to: "/hackathon", icon: CalendarDays },
+          { label: t("dashboard.nav.profile"), to: "/settings/profile", icon: UserRound },
+          { label: t("dashboard.nav.team"), to: "/settings/team", icon: Users },
         ];
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -190,19 +208,22 @@ export function DashboardLayout() {
 
   const pageTitles: Record<string, string> = {
     "/dashboard": t("dashboard.nav.dashboard"),
+    "/admin/dashboard": t("dashboard.nav.dashboard"),
     "/admin/teams": t("admin.nav.teams"),
     "/admin/staff": t("admin.nav.staff"),
     "/admin/checkpoints": t("admin.checkpoints.pageTitle"),
     "/admin/settings": t("admin.settings.pageTitle"),
-    "/admin/dashboard": t("dashboard.nav.dashboard"),
     "/jury/dashboard": t("dashboard.nav.dashboard"),
     "/hackathon": t("hackathon.pageTitle"),
-    "/settings/profile": t("dashboard.title.profile"),
+    "/settings/profile": t("dashboard.nav.profile"),
     "/staff/profile": t("dashboard.title.profile"),
-    "/settings/team": t("dashboard.title.team"),
+    "/settings/team": t("dashboard.nav.team"),
   };
 
-  const title = pageTitles[location.pathname] ?? t("dashboard.nav.dashboard");
+  const title = pageTitles[location.pathname]
+    ?? (location.pathname.startsWith("/admin/teams/")
+      ? t("admin.teams.details.title")
+      : t("dashboard.nav.dashboard"));
   const timing = useHackathonTime();
   const isDemoActive = !timing.isLoading && timing.demoMode;
 
@@ -210,10 +231,10 @@ export function DashboardLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mx-1 h-4" />
-          <h1 className="text-sm font-semibold">{title}</h1>
+          <h1 className="truncate text-sm font-semibold">{title}</h1>
         </header>
         {isDemoActive && (
           <div className="flex items-center justify-center gap-2 bg-amber-400/20 px-4 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 border-b border-amber-400/40">
@@ -222,7 +243,7 @@ export function DashboardLayout() {
             })}
           </div>
         )}
-        <div className="flex flex-1 flex-col overflow-auto bg-muted/40 p-4 sm:p-6">
+        <div className="flex flex-1 flex-col overflow-auto bg-muted/40 p-3 sm:p-6">
           <Outlet />
         </div>
       </SidebarInset>

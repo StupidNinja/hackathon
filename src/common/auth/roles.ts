@@ -28,7 +28,7 @@ export function getDashboardPathForRole(
   role: AppRole | null | undefined,
 ): string {
   if (role === "admin") {
-    return "/admin/teams";
+    return "/admin/dashboard";
   }
 
   if (role === "jury") {

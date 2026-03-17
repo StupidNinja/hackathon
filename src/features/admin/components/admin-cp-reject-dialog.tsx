@@ -37,7 +37,6 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/common/components/ui/select";
@@ -116,6 +115,7 @@ export function AdminCpRejectDialog({
       void queryClient.invalidateQueries({ queryKey: ["admin-team-details", teamId] });
       void queryClient.invalidateQueries({ queryKey: ["admin-cp-statuses", cpCode] });
       void queryClient.invalidateQueries({ queryKey: ["admin-team-decisions", teamId] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-stats"] });
       onOpenChange(false);
       form.reset();
     },
@@ -193,7 +193,9 @@ export function AdminCpRejectDialog({
                     </FormControl>
                     <SelectContent>
                       {templatesQuery.isLoading && (
-                        <SelectLabel>{t("common.loading")}</SelectLabel>
+                        <SelectItem value="__loading" disabled>
+                          {t("common.loading")}
+                        </SelectItem>
                       )}
                       {reasonTemplates.map((template) => (
                         <SelectItem key={template.id} value={template.code}>

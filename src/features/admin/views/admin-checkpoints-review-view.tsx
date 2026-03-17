@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   getTeamCheckpointStatuses,
@@ -41,6 +41,8 @@ import { LoadingScreen } from "@/common/components/loading-screen";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { AdminCpRejectDialog } from "@/features/admin/components/admin-cp-reject-dialog";
+import { AdminTablePagination } from "@/features/admin/components/admin-table-pagination";
+import { ADMIN_TABLE_SPACING_CLASS } from "@/features/admin/lib/admin-table-styles";
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
@@ -52,6 +54,7 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
 type FilterCategory = "all" | "not_submitted" | "under_review" | "advanced" | "rejected";
 
 const CP_CODES: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
+const PAGE_SIZE = 20;
 
 const FILTER_CATEGORIES: FilterCategory[] = [
   "all",
@@ -76,21 +79,43 @@ function DecisionBadge({ decision }: { decision: DecisionType | undefined }) {
   );
   switch (decision) {
     case "advanced":
-      return <Badge className="bg-green-600 hover:bg-green-600">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-green-300/50 bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+        >
+          {label}
+        </Badge>
+      );
     case "rejected":
-      return <Badge variant="destructive">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-red-300/50 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+        >
+          {label}
+        </Badge>
+      );
     case "under_review":
-      return <Badge variant="secondary">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-yellow-300/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+        >
+          {label}
+        </Badge>
+      );
   }
 }
 
 type RowActionsProps = {
   row: TeamCheckpointStatusRow;
   cpCode: CheckpointCode;
+  detailsFrom: string;
   onReject: (teamId: string, teamName: string) => void;
 };
 
-function RowActions({ row, cpCode, onReject }: RowActionsProps) {
+function RowActions({ row, cpCode, detailsFrom, onReject }: RowActionsProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -100,6 +125,7 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
       setCheckpointDecision(row.team.id, cpCode, d),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-cp-statuses", cpCode] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-stats"] });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : t("common.error"));
@@ -118,7 +144,10 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
         size="sm"
         variant="ghost"
         className="h-7 px-2 text-xs"
-        onClick={() => void navigate(`/admin/teams/${row.team.id}`)}
+        onClick={() =>
+          void navigate(`/admin/teams/${row.team.id}`, {
+            state: { from: detailsFrom },
+          })}
       >
         {t("admin.checkpoints.actions.view")}
       </Button>
@@ -126,8 +155,8 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
         <>
           <Button
             size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
+            variant="outline"
+            className="h-7 px-2 text-xs border-green-300/50 bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/40 dark:text-green-300"
             disabled={actionsLocked || row.decision?.decision === "advanced"}
             onClick={() => markMutation.mutate("advanced")}
           >
@@ -135,8 +164,8 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
           </Button>
           <Button
             size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            variant="destructive"
+            className="h-7 px-2 text-xs"
             disabled={actionsLocked}
             onClick={() => onReject(row.team.id, row.team.name)}
           >
@@ -150,10 +179,12 @@ function RowActions({ row, cpCode, onReject }: RowActionsProps) {
 
 export function AdminCheckpointsReviewView() {
   const { t } = useI18n();
+  const location = useLocation();
   usePageTitle(t("admin.checkpoints.pageTitle"));
 
   const [selectedCp, setSelectedCp] = useState<CheckpointCode>("cp0");
   const [filter, setFilter] = useState<FilterCategory>("all");
+  const [page, setPage] = useState(1);
   const [rejectTarget, setRejectTarget] = useState<{
     teamId: string;
     teamName: string;
@@ -167,6 +198,11 @@ export function AdminCheckpointsReviewView() {
   const rows = statusQuery.data ?? [];
   const filteredRows =
     filter === "all" ? rows : rows.filter((r) => getEffectiveCategory(r) === filter);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedRows = filteredRows.slice(pageStart, pageStart + PAGE_SIZE);
+  const detailsFrom = `${location.pathname}`;
 
   const counts: Record<FilterCategory, number> = {
     all: rows.length,
@@ -184,7 +220,7 @@ export function AdminCheckpointsReviewView() {
       </div>
 
       {/* CP selector */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium">
           {t("admin.checkpoints.selectCp")}:
         </span>
@@ -193,6 +229,7 @@ export function AdminCheckpointsReviewView() {
           onValueChange={(v) => {
             setSelectedCp(v as CheckpointCode);
             setFilter("all");
+            setPage(1);
           }}
         >
           <SelectTrigger className="w-44">
@@ -219,9 +256,15 @@ export function AdminCheckpointsReviewView() {
         </CardHeader>
         <CardContent className="p-0">
           {/* Filter tabs */}
-          <div className="border-b px-4 pt-3">
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterCategory)}>
-              <TabsList className="h-8 gap-0 bg-transparent p-0">
+          <div className="overflow-x-auto border-b px-4 pt-3">
+            <Tabs
+              value={filter}
+              onValueChange={(v) => {
+                setFilter(v as FilterCategory);
+                setPage(1);
+              }}
+            >
+              <TabsList className="h-8 min-w-max gap-0 bg-transparent p-0">
                 {FILTER_CATEGORIES.map((cat) => (
                   <TabsTrigger
                     key={cat}
@@ -245,9 +288,70 @@ export function AdminCheckpointsReviewView() {
             <div className="p-4">
               <LoadingScreen message={t("common.loading")} />
             </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              {t("admin.teams.empty")}
+            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <>
+              <div className="space-y-3 p-4 md:hidden">
+                {pagedRows.map((row) => (
+                  <Card key={row.team.id}>
+                    <CardContent className="space-y-3 p-4">
+                      <div>
+                        <p className="text-sm font-semibold">{row.team.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {row.team.captain.first_name} {row.team.captain.last_name}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!row.submission || row.submission.status === "draft" ? (
+                          row.submission ? (
+                            <Badge
+                              variant="outline"
+                              className="border-yellow-300/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+                            >
+                              {t("admin.checkpoints.submission.draft")}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="border-gray-200 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                            >
+                              {t("admin.checkpoints.submission.missing")}
+                            </Badge>
+                          )
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-green-300/50 bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                          >
+                            {t("admin.checkpoints.submission.submitted")}
+                          </Badge>
+                        )}
+                        <DecisionBadge decision={row.decision?.decision} />
+                      </div>
+
+                      {row.submission?.submitted_at && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("admin.checkpoints.table.submittedAt")}: {dateFormatter.format(new Date(row.submission.submitted_at))}
+                        </p>
+                      )}
+
+                      <RowActions
+                        row={row}
+                        cpCode={selectedCp}
+                        detailsFrom={detailsFrom}
+                        onReject={(teamId, teamName) => setRejectTarget({ teamId, teamName })}
+                      />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
+              <Table className={ADMIN_TABLE_SPACING_CLASS}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("admin.checkpoints.table.team")}</TableHead>
@@ -263,17 +367,7 @@ export function AdminCheckpointsReviewView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="py-8 text-center text-sm text-muted-foreground"
-                      >
-                        {t("admin.teams.empty")}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredRows.map((row) => (
+                  {pagedRows.map((row) => (
                       <TableRow key={row.team.id}>
                         <TableCell className="font-medium">
                           {row.team.name}
@@ -284,13 +378,26 @@ export function AdminCheckpointsReviewView() {
                         </TableCell>
                         <TableCell>
                           {!row.submission || row.submission.status === "draft" ? (
-                            <Badge variant="outline">
-                              {row.submission
-                                ? t("admin.checkpoints.submission.draft")
-                                : t("admin.checkpoints.submission.missing")}
-                            </Badge>
+                            row.submission ? (
+                              <Badge
+                                variant="outline"
+                                className="border-yellow-300/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+                              >
+                                {t("admin.checkpoints.submission.draft")}
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-gray-200 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                              >
+                                {t("admin.checkpoints.submission.missing")}
+                              </Badge>
+                            )
                           ) : (
-                            <Badge>
+                            <Badge
+                              variant="outline"
+                              className="border-green-300/50 bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                            >
                               {t("admin.checkpoints.submission.submitted")}
                             </Badge>
                           )}
@@ -311,18 +418,21 @@ export function AdminCheckpointsReviewView() {
                           <RowActions
                             row={row}
                             cpCode={selectedCp}
+                            detailsFrom={detailsFrom}
                             onReject={(teamId, teamName) =>
                               setRejectTarget({ teamId, teamName })
                             }
                           />
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
+
+          <AdminTablePagination page={currentPage} pageCount={pageCount} onPageChange={setPage} />
         </CardContent>
       </Card>
 

@@ -56,6 +56,15 @@ type NotifyRejectionResult = {
   ok: true;
 };
 
+const DASHBOARD_CHECKPOINTS = ["cp0", "cp1", "cp2", "cp3"] as const;
+type DashboardCheckpointCode = (typeof DASHBOARD_CHECKPOINTS)[number];
+
+export type AdminDashboardStatsRow = {
+  total_teams: number;
+  total_participants: number;
+  passed_by_checkpoint: Record<DashboardCheckpointCode, number>;
+};
+
 type RawCaptainProfile = {
   id: string;
   first_name: string | null;
@@ -151,6 +160,48 @@ export async function getStaffUsers(): Promise<StaffUserRow[]> {
   return data as StaffUserRow[];
 }
 
+export async function getAdminDashboardStats(): Promise<AdminDashboardStatsRow> {
+  const [teamsCountResult, participantsCountResult, ...checkpointPassCountResults] =
+    await Promise.all([
+      supabase
+        .from("teams")
+        .select("id", { count: "exact", head: true })
+        .eq("is_registered", true),
+      supabase
+        .from("team_members")
+        .select("id,teams!inner(id)", { count: "exact", head: true })
+        .eq("teams.is_registered", true),
+      ...DASHBOARD_CHECKPOINTS.map((code) =>
+        supabase
+          .from("checkpoint_decisions")
+          .select("team_id", { count: "exact", head: true })
+          .eq("checkpoint_code", code)
+          .eq("decision", "advanced"),
+      ),
+    ]);
+
+  if (teamsCountResult.error) throw teamsCountResult.error;
+  if (participantsCountResult.error) throw participantsCountResult.error;
+
+  const passedByCheckpoint = DASHBOARD_CHECKPOINTS.reduce<
+    Record<DashboardCheckpointCode, number>
+  >(
+    (acc, code, index) => {
+      const result = checkpointPassCountResults[index];
+      if (result.error) throw result.error;
+      acc[code] = result.count ?? 0;
+      return acc;
+    },
+    { cp0: 0, cp1: 0, cp2: 0, cp3: 0 },
+  );
+
+  return {
+    total_teams: teamsCountResult.count ?? 0,
+    total_participants: participantsCountResult.count ?? 0,
+    passed_by_checkpoint: passedByCheckpoint,
+  };
+}
+
 async function fetchCaptainProfiles(
   captainIds: string[],
 ): Promise<Map<string, RawCaptainProfile>> {
@@ -240,34 +291,6 @@ export async function getDisqualificationByTeamId(
   };
 }
 
-export async function disqualifyTeam(
-  teamId: string,
-  reasonCode: "invalid_data" | "spam" | "duplicate_team" | "other",
-  adminComment: string,
-): Promise<void> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError ?? !user) throw new Error("User not authenticated");
-
-  const { error: insertError } = await supabase
-    .from("disqualifications")
-    .insert({
-      team_id: teamId,
-      reason_code: reasonCode,
-      admin_comment: adminComment,
-      created_by: user.id,
-    });
-  if (insertError) throw insertError;
-
-  const { error: updateError } = await supabase
-    .from("teams")
-    .update({ status: "disqualified", is_registered: false })
-    .eq("id", teamId);
-  if (updateError) throw updateError;
-}
-
 export async function notifyRejection(
   input: NotifyRejectionInput,
 ): Promise<NotifyRejectionResult> {
@@ -288,9 +311,14 @@ export async function notifyRejection(
 
   if (response.error) {
     let message: string | undefined;
-    const responseError = response.error;
+    const responseError: unknown = response.error;
     const responseMessage =
-      typeof responseError.message === "string" ? responseError.message : undefined;
+      typeof responseError === "object"
+        && responseError !== null
+        && "message" in responseError
+        && typeof (responseError as { message?: unknown }).message === "string"
+        ? (responseError as { message: string }).message
+        : undefined;
     const httpError =
       typeof responseError === "object" &&
       responseError !== null &&

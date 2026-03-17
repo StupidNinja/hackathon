@@ -11,6 +11,7 @@ import { AuthView } from "@/features/auth/views/auth-view";
 import { AdminStaffView } from "@/features/admin/views/admin-staff-view";
 import { AdminTeamDetailsView } from "@/features/admin/views/admin-team-details-view";
 import { AdminTeamsView } from "@/features/admin/views/admin-teams-view";
+import { AdminDashboardView } from "@/features/admin/views/admin-dashboard-view";
 import { AdminCheckpointsReviewView } from "@/features/admin/views/admin-checkpoints-review-view";
 import { AdminSettingsView } from "@/features/admin/views/admin-settings-view";
 import { ChangePasswordView } from "@/features/settings/views/change-password-view";
@@ -79,7 +80,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "dashboard/admin",
-                element: <Navigate to="/admin/teams" replace />,
+                element: <Navigate to="/admin/dashboard" replace />,
               },
               {
                 path: "admin",
@@ -87,11 +88,11 @@ export const routes: RouteObject[] = [
                 children: [
                   {
                     index: true,
-                    element: <Navigate to="/admin/teams" replace />,
+                    element: <Navigate to="/admin/dashboard" replace />,
                   },
                   {
                     path: "dashboard",
-                    element: <Navigate to="/admin/teams" replace />,
+                    element: <AdminDashboardView />,
                   },
                   {
                     path: "teams",

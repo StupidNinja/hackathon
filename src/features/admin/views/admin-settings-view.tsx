@@ -123,7 +123,7 @@ export function AdminSettingsView() {
     useWatch({ control: form.control, name: "demo_mode" }) ?? false;
 
   if (profileQuery.isLoading) return <LoadingScreen />;
-  if (!isSuperAdmin(profileQuery.data)) return <Navigate to="/admin/teams" replace />;
+  if (!isSuperAdmin(profileQuery.data)) return <Navigate to="/admin/dashboard" replace />;
 
   const virtualNow = timing.virtualNow;
 
@@ -137,17 +137,19 @@ export function AdminSettingsView() {
       </div>
 
       <Tabs defaultValue="time" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-          <TabsTrigger value="time">Время этапов</TabsTrigger>
-          <TabsTrigger value="cp0-topics">Темы проектов (CP0)</TabsTrigger>
-          <TabsTrigger value="rejections">Шаблоны отклонения</TabsTrigger>
-          <TabsTrigger value="jury">Критерии жюри</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="h-9 min-w-max gap-1">
+            <TabsTrigger value="time">Время этапов</TabsTrigger>
+            <TabsTrigger value="cp0-topics">Темы проектов (CP0)</TabsTrigger>
+            <TabsTrigger value="rejections">Шаблоны отклонения</TabsTrigger>
+            <TabsTrigger value="jury">Критерии жюри</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="time" className="space-y-5">
           <Card className="bg-muted/30">
             <CardContent className="pt-4 pb-4 text-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium">{t("admin.settings.virtualNow")}</span>
                 <span className="font-mono tabular-nums">
                   {timing.t0

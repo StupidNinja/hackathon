@@ -26,6 +26,7 @@ import type {
   CreateJuryCriterionInput,
   JuryCriterionRow,
 } from "@/common/api/supabase";
+import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -61,14 +62,14 @@ import {
 import { Textarea } from "@/common/components/ui/textarea";
 import { useI18n } from "@/common/i18n/use-i18n";
 
-type MutableCp0TopicFields = Pick<Cp0TopicRow, "label" | "sort_order" | "is_active">;
+type MutableCp0TopicFields = Pick<Cp0TopicRow, "label" | "is_active">;
 type MutableRejectionTemplateFields = Pick<
   CheckpointRejectionTemplateRow,
-  "label" | "default_comment" | "sort_order" | "is_active"
+  "label" | "default_comment" | "is_active"
 >;
 type MutableJuryCriterionFields = Pick<
   JuryCriterionRow,
-  "title" | "description" | "max_points" | "sort_order" | "is_active"
+  "title" | "description" | "max_points" | "is_active"
 >;
 
 const CHECKPOINT_OPTIONS: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
@@ -81,7 +82,6 @@ function parseNumber(value: string, fallback = 0): number {
 function createTopicDraft(topic: Cp0TopicRow): MutableCp0TopicFields {
   return {
     label: topic.label,
-    sort_order: topic.sort_order,
     is_active: topic.is_active,
   };
 }
@@ -92,7 +92,6 @@ function createRejectionTemplateDraft(
   return {
     label: template.label,
     default_comment: template.default_comment,
-    sort_order: template.sort_order,
     is_active: template.is_active,
   };
 }
@@ -104,7 +103,6 @@ function createJuryCriterionDraft(
     title: criterion.title,
     description: criterion.description,
     max_points: criterion.max_points,
-    sort_order: criterion.sort_order,
     is_active: criterion.is_active,
   };
 }
@@ -184,21 +182,6 @@ function TopicCreateDialog() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Порядок</label>
-            <Input
-              type="number"
-              value={draft.sort_order}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  sort_order: parseNumber(event.target.value, 0),
-                }))
-              }
-              disabled={disabled}
-            />
-          </div>
-
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -273,19 +256,6 @@ function TopicRowEditor({ topic }: { topic: Cp0TopicRow }) {
           disabled={disabled}
         />
       </TableCell>
-      <TableCell className="w-32">
-        <Input
-          type="number"
-          value={draft.sort_order}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              sort_order: parseNumber(event.target.value, current.sort_order),
-            }))
-          }
-          disabled={disabled}
-        />
-      </TableCell>
       <TableCell className="w-24">
         <input
           type="checkbox"
@@ -321,6 +291,85 @@ function TopicRowEditor({ topic }: { topic: Cp0TopicRow }) {
   );
 }
 
+function TopicCardEditor({ topic }: { topic: Cp0TopicRow }) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<MutableCp0TopicFields>(() => createTopicDraft(topic));
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateCp0Topic(topic.id, draft),
+    onSuccess: () => {
+      toast.success("Тема сохранена.");
+      void queryClient.invalidateQueries({ queryKey: ["cp0-topics"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteCp0Topic(topic.id),
+    onSuccess: () => {
+      toast.success("Тема удалена.");
+      void queryClient.invalidateQueries({ queryKey: ["cp0-topics"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const disabled = saveMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Тема</label>
+          <Input
+            value={draft.label}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, label: event.target.value }))
+            }
+            disabled={disabled}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={draft.is_active}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, is_active: event.target.checked }))
+            }
+            disabled={disabled}
+          />
+          Активна
+        </label>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            disabled={disabled || draft.label.trim().length === 0}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? t("common.loading") : t("common.save")}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => deleteMutation.mutate()}
+          >
+            Удалить
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function Cp0TopicsSettingsSection() {
   const topicsQuery = useQuery({
     queryKey: ["cp0-topics", "all"],
@@ -344,26 +393,35 @@ export function Cp0TopicsSettingsSection() {
         {topicsQuery.isError ? (
           <SectionError message="Не удалось загрузить темы CP0." />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Тема</TableHead>
-                  <TableHead className="w-32">Порядок</TableHead>
-                  <TableHead className="w-24">Активна</TableHead>
-                  <TableHead className="w-40 text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(topicsQuery.data ?? []).map((topic) => (
-                  <TopicRowEditor
-                    key={`${topic.id}:${topic.updated_at}`}
-                    topic={topic}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="space-y-3 md:hidden">
+              {(topicsQuery.data ?? []).map((topic) => (
+                <TopicCardEditor
+                  key={`${topic.id}:${topic.updated_at}:card`}
+                  topic={topic}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Тема</TableHead>
+                    <TableHead className="w-24">Активна</TableHead>
+                    <TableHead className="w-40 text-right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(topicsQuery.data ?? []).map((topic) => (
+                    <TopicRowEditor
+                      key={`${topic.id}:${topic.updated_at}`}
+                      topic={topic}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
@@ -496,21 +554,6 @@ function RejectionTemplateCreateDialog() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Порядок</label>
-            <Input
-              type="number"
-              value={draft.sort_order}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  sort_order: parseNumber(event.target.value, 0),
-                }))
-              }
-              disabled={disabled}
-            />
-          </div>
-
           <label className="flex items-center gap-2 self-end text-sm">
             <input
               type="checkbox"
@@ -615,19 +658,6 @@ function RejectionTemplateRowEditor({
           disabled={disabled}
         />
       </TableCell>
-      <TableCell className="w-28">
-        <Input
-          type="number"
-          value={draft.sort_order}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              sort_order: parseNumber(event.target.value, current.sort_order),
-            }))
-          }
-          disabled={disabled}
-        />
-      </TableCell>
       <TableCell className="w-24">
         <input
           type="checkbox"
@@ -667,6 +697,117 @@ function RejectionTemplateRowEditor({
   );
 }
 
+function RejectionTemplateCardEditor({
+  template,
+}: {
+  template: CheckpointRejectionTemplateRow;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<MutableRejectionTemplateFields>(() =>
+    createRejectionTemplateDraft(template),
+  );
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateCheckpointRejectionTemplate(template.id, draft),
+    onSuccess: () => {
+      toast.success("Шаблон сохранен.");
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint-rejection-templates"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteCheckpointRejectionTemplate(template.id),
+    onSuccess: () => {
+      toast.success("Шаблон удален.");
+      void queryClient.invalidateQueries({ queryKey: ["checkpoint-rejection-templates"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const disabled = saveMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="outline">{template.checkpoint_code.toUpperCase()}</Badge>
+          <code className="text-xs text-muted-foreground">{template.code}</code>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Название</label>
+          <Input
+            value={draft.label}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, label: event.target.value }))
+            }
+            disabled={disabled}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Комментарий по умолчанию</label>
+          <Textarea
+            value={draft.default_comment}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                default_comment: event.target.value,
+              }))
+            }
+            rows={3}
+            disabled={disabled}
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={draft.is_active}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, is_active: event.target.checked }))
+            }
+            disabled={disabled}
+          />
+          Активен
+        </label>
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            disabled={
+              disabled ||
+              draft.label.trim().length === 0 ||
+              draft.default_comment.trim().length === 0
+            }
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? t("common.loading") : t("common.save")}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => deleteMutation.mutate()}
+          >
+            Удалить
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function RejectionTemplatesSettingsSection() {
   const templatesQuery = useQuery({
     queryKey: ["checkpoint-rejection-templates", "all"],
@@ -691,29 +832,38 @@ export function RejectionTemplatesSettingsSection() {
         {templatesQuery.isError ? (
           <SectionError message="Не удалось загрузить шаблоны причин." />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-28">Чекпоинт</TableHead>
-                  <TableHead className="w-40">Код</TableHead>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Комментарий по умолчанию</TableHead>
-                  <TableHead className="w-28">Порядок</TableHead>
-                  <TableHead className="w-24">Активен</TableHead>
-                  <TableHead className="w-36 text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(templatesQuery.data ?? []).map((template) => (
-                  <RejectionTemplateRowEditor
-                    key={`${template.id}:${template.updated_at}`}
-                    template={template}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="space-y-3 md:hidden">
+              {(templatesQuery.data ?? []).map((template) => (
+                <RejectionTemplateCardEditor
+                  key={`${template.id}:${template.updated_at}:card`}
+                  template={template}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-28">Чекпоинт</TableHead>
+                    <TableHead className="w-40">Код</TableHead>
+                    <TableHead>Название</TableHead>
+                    <TableHead>Комментарий по умолчанию</TableHead>
+                    <TableHead className="w-24">Активен</TableHead>
+                    <TableHead className="w-36 text-right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(templatesQuery.data ?? []).map((template) => (
+                    <RejectionTemplateRowEditor
+                      key={`${template.id}:${template.updated_at}`}
+                      template={template}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
@@ -807,7 +957,7 @@ function JuryCriterionCreateDialog({ locked }: { locked: boolean }) {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Макс. балл</label>
               <Input
@@ -817,21 +967,6 @@ function JuryCriterionCreateDialog({ locked }: { locked: boolean }) {
                   setDraft((current) => ({
                     ...current,
                     max_points: parseNumber(event.target.value, 1),
-                  }))
-                }
-                disabled={disabled}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Порядок</label>
-              <Input
-                type="number"
-                value={draft.sort_order}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    sort_order: parseNumber(event.target.value, 0),
                   }))
                 }
                 disabled={disabled}
@@ -949,19 +1084,6 @@ function JuryCriterionRowEditor({
           disabled={disabled}
         />
       </TableCell>
-      <TableCell className="w-28">
-        <Input
-          type="number"
-          value={draft.sort_order}
-          onChange={(event) =>
-            setDraft((current) => ({
-              ...current,
-              sort_order: parseNumber(event.target.value, current.sort_order),
-            }))
-          }
-          disabled={disabled}
-        />
-      </TableCell>
       <TableCell className="w-24">
         <input
           type="checkbox"
@@ -996,6 +1118,121 @@ function JuryCriterionRowEditor({
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function JuryCriterionCardEditor({
+  criterion,
+  locked,
+}: {
+  criterion: JuryCriterionRow;
+  locked: boolean;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<MutableJuryCriterionFields>(() =>
+    createJuryCriterionDraft(criterion),
+  );
+
+  const saveMutation = useMutation({
+    mutationFn: () => updateJuryCriterion(criterion.id, draft),
+    onSuccess: () => {
+      toast.success("Критерий сохранен.");
+      void queryClient.invalidateQueries({ queryKey: ["jury-criteria"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteJuryCriterion(criterion.id),
+    onSuccess: () => {
+      toast.success("Критерий удален.");
+      void queryClient.invalidateQueries({ queryKey: ["jury-criteria"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
+    },
+  });
+
+  const disabled = locked || saveMutation.isPending || deleteMutation.isPending;
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Критерий</label>
+          <Input
+            value={draft.title}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, title: event.target.value }))
+            }
+            disabled={disabled}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Описание</label>
+          <Textarea
+            value={draft.description ?? ""}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                description: event.target.value,
+              }))
+            }
+            rows={3}
+            disabled={disabled}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground">Макс. балл</label>
+          <Input
+            type="number"
+            value={draft.max_points}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                max_points: parseNumber(event.target.value, current.max_points),
+              }))
+            }
+            disabled={disabled}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={draft.is_active}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, is_active: event.target.checked }))
+            }
+            disabled={disabled}
+          />
+          Активен
+        </label>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            disabled={disabled || draft.title.trim().length === 0 || draft.max_points <= 0}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? t("common.loading") : t("common.save")}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => deleteMutation.mutate()}
+          >
+            Удалить
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1034,29 +1271,39 @@ export function JuryCriteriaSettingsSection() {
         {criteriaQuery.isError || lockedQuery.isError ? (
           <SectionError message="Не удалось загрузить критерии жюри." />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Критерий</TableHead>
-                  <TableHead>Описание</TableHead>
-                  <TableHead className="w-28">Макс. балл</TableHead>
-                  <TableHead className="w-28">Порядок</TableHead>
-                  <TableHead className="w-24">Активен</TableHead>
-                  <TableHead className="w-36 text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(criteriaQuery.data ?? []).map((criterion) => (
-                  <JuryCriterionRowEditor
-                    key={`${criterion.id}:${criterion.updated_at}`}
-                    criterion={criterion}
-                    locked={locked}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="space-y-3 md:hidden">
+              {(criteriaQuery.data ?? []).map((criterion) => (
+                <JuryCriterionCardEditor
+                  key={`${criterion.id}:${criterion.updated_at}:card`}
+                  criterion={criterion}
+                  locked={locked}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Критерий</TableHead>
+                    <TableHead>Описание</TableHead>
+                    <TableHead className="w-28">Макс. балл</TableHead>
+                    <TableHead className="w-24">Активен</TableHead>
+                    <TableHead className="w-36 text-right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(criteriaQuery.data ?? []).map((criterion) => (
+                    <JuryCriterionRowEditor
+                      key={`${criterion.id}:${criterion.updated_at}`}
+                      criterion={criterion}
+                      locked={locked}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

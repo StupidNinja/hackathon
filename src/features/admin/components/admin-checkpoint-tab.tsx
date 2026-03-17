@@ -33,11 +33,32 @@ function DecisionBadge({ decision }: { decision: DecisionType }) {
 
   switch (decision) {
     case "advanced":
-      return <Badge className="bg-green-600 hover:bg-green-600">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-green-300/50 bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+        >
+          {label}
+        </Badge>
+      );
     case "rejected":
-      return <Badge variant="destructive">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-red-300/50 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+        >
+          {label}
+        </Badge>
+      );
     case "under_review":
-      return <Badge variant="secondary">{label}</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="border-yellow-300/50 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
+        >
+          {label}
+        </Badge>
+      );
   }
 }
 
@@ -120,9 +141,11 @@ export function AdminCheckpointTab({
     mutationFn: (nextDecision: Extract<DecisionType, "under_review" | "advanced">) =>
       setCheckpointDecision(teamId, cpCode, nextDecision),
     onSuccess: () => {
-      toast.success(t("admin.checkpoints.actions.view"));
+      toast.success(t("admin.checkpoints.decisionSuccess"));
+      void queryClient.invalidateQueries({ queryKey: ["admin-team-details", teamId] });
       void queryClient.invalidateQueries({ queryKey: ["admin-team-decisions", teamId] });
       void queryClient.invalidateQueries({ queryKey: ["admin-cp-statuses", cpCode] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard-stats"] });
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : t("common.error"));
@@ -207,7 +230,8 @@ export function AdminCheckpointTab({
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
-          variant="secondary"
+          variant="outline"
+          className="border-yellow-300/50 bg-yellow-100 text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-300"
           disabled={actionsLocked || decision?.decision === "under_review"}
           onClick={() => markMutation.mutate("under_review")}
         >
@@ -216,8 +240,8 @@ export function AdminCheckpointTab({
         </Button>
         <Button
           size="sm"
-          variant="default"
-          className="bg-green-600 hover:bg-green-700"
+          variant="outline"
+          className="border-green-300/50 bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/40 dark:text-green-300"
           disabled={actionsLocked || decision?.decision === "advanced"}
           onClick={() => markMutation.mutate("advanced")}
         >
