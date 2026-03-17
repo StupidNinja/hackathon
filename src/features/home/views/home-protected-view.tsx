@@ -14,6 +14,7 @@ import {
 import { useAuthStore } from "@/common/auth/authStore";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
 import { Badge } from "@/common/components/ui/badge";
+import { Button } from "@/common/components/ui/button";
 import {
   Card,
   CardContent,
@@ -21,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/common/components/ui/card";
+import { Skeleton } from "@/common/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -29,13 +31,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/common/components/ui/table";
-import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
+import { ErrorScreen } from "@/common/components/loading-screen";
 import { useHackathonTime, formatTimeRemaining } from "@/common/hooks/use-hackathon-time";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
 function getInitials(firstName: string | null, lastName: string | null): string {
   return ((firstName?.[0] ?? "") + (lastName?.[0] ?? "")).toUpperCase() || "?";
+}
+
+function HomeDashboardSkeleton() {
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+
+      <Skeleton className="h-36 w-full" />
+      <Skeleton className="h-48 w-full" />
+      <Skeleton className="h-56 w-full" />
+    </div>
+  );
 }
 
 export function HomeProtectedView() {
@@ -76,7 +100,7 @@ export function HomeProtectedView() {
   if (!userId) return null;
 
   if (onboardingQuery.isPending || (onboardingQuery.isFetching && onboardingQuery.isStale)) {
-    return <LoadingScreen message={t("dashboard.loading")} />;
+    return <HomeDashboardSkeleton />;
   }
 
   if (onboardingQuery.isError || !onboardingQuery.data) {
@@ -189,6 +213,34 @@ export function HomeProtectedView() {
           </Card>
         )}
 
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="text-base">{t("dashboard.summary")}</CardTitle>
+          <CardDescription>{t("dashboard.overview.desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-3">
+          <Button asChild variant="outline" className="justify-start">
+            <Link to="/hackathon">{t("dashboard.nav.hackathon")}</Link>
+          </Button>
+          <Button asChild variant="outline" className="justify-start">
+            <Link to={isTeamProfile ? "/settings/profile" : "/staff/profile"}>
+              {t("dashboard.title.profile")}
+            </Link>
+          </Button>
+          {isTeamProfile ? (
+            <Button asChild variant="outline" className="justify-start">
+              <Link to="/settings/team">{t("dashboard.title.team")}</Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="justify-start">
+              <Link to={getDashboardPathForRole(profileRole)}>
+                {t("dashboard.nav.dashboard")}
+              </Link>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
       <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
         <CardHeader>
           <CardTitle className="text-base">{t("dashboard.telegram.title")}</CardTitle>
@@ -243,7 +295,14 @@ export function HomeProtectedView() {
                   </Link>
                 </div>
               </CardHeader>
-              {members.length > 0 && (
+              {teamQuery.isLoading && (
+                <CardContent className="space-y-2 pt-0">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={`team-member-skeleton:${index}`} className="h-11 w-full" />
+                  ))}
+                </CardContent>
+              )}
+              {!teamQuery.isLoading && members.length > 0 && (
                 <CardContent className="pt-0">
                   <Table>
                     <TableHeader>
