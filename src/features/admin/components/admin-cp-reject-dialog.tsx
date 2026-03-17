@@ -1,12 +1,19 @@
-import { useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 
-import { notifyRejection, setCheckpointDecision } from "@/common/api/supabase";
-import type { CheckpointCode } from "@/common/api/supabase";
+import {
+  getCheckpointRejectionTemplates,
+  notifyRejection,
+  setCheckpointDecision,
+} from "@/common/api/supabase";
+import type {
+  CheckpointCode,
+  CheckpointRejectionTemplateRow,
+} from "@/common/api/supabase";
 import { useI18n } from "@/common/i18n/use-i18n";
 import {
   AlertDialog,
@@ -30,18 +37,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/common/components/ui/select";
 import { Textarea } from "@/common/components/ui/textarea";
-
-// CP-specific reject reason codes
-const CP_REASON_CODES = {
-  cp0: ["no_confirmation", "invalid_topic", "other"],
-  cp1: ["incomplete_description", "missing_audience", "other"],
-  cp2: ["invalid_repo", "no_implementation", "other"],
-  cp3: ["no_build_or_presentation", "incomplete", "other"],
-} as const satisfies Record<CheckpointCode, readonly string[]>;
 
 type Props = {
   teamId: string;
@@ -60,21 +60,28 @@ export function AdminCpRejectDialog({
 }: Props) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const templatesQuery = useQuery({
+    queryKey: ["checkpoint-rejection-templates", cpCode, "active"],
+    queryFn: () =>
+      getCheckpointRejectionTemplates({
+        checkpointCode: cpCode,
+        activeOnly: true,
+      }),
+    enabled: open,
+  });
 
-  const reasonCodes = CP_REASON_CODES[cpCode];
+  const reasonTemplates = templatesQuery.data ?? [];
 
   const schema = useMemo(
     () =>
       z.object({
-        reasonCode: z.enum(reasonCodes as unknown as [string, ...string[]], {
-          error: t("validation.selectReasonRequired"),
-        }),
+        reasonCode: z.string().min(1, t("validation.selectReasonRequired")),
         adminComment: z
           .string()
+          .trim()
           .min(5, t("admin.checkpoints.reject.commentMinLength")),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, cpCode],
+    [t],
   );
 
   type FormValues = z.infer<typeof schema>;
@@ -83,6 +90,12 @@ export function AdminCpRejectDialog({
     resolver: zodResolver(schema),
     defaultValues: { reasonCode: "", adminComment: "" },
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({ reasonCode: "", adminComment: "" });
+    }
+  }, [cpCode, form, open]);
 
   const mutation = useMutation({
     mutationFn: ({ reasonCode, adminComment }: FormValues) =>
@@ -117,6 +130,24 @@ export function AdminCpRejectDialog({
     mutation.mutate(values);
   };
 
+  const handleTemplateSelect = (
+    template: CheckpointRejectionTemplateRow | undefined,
+    onChange: (value: string) => void,
+  ) => {
+    const nextCode = template?.code ?? "";
+    onChange(nextCode);
+    form.setValue("adminComment", template?.default_comment ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const submitDisabled =
+    mutation.isPending ||
+    templatesQuery.isLoading ||
+    templatesQuery.isError ||
+    reasonTemplates.length === 0;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -127,7 +158,7 @@ export function AdminCpRejectDialog({
             })}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            <strong>{teamName}</strong> — {t("admin.checkpoints.reject.desc")}
+            <strong>{teamName}</strong> - {t("admin.checkpoints.reject.desc")}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -146,9 +177,14 @@ export function AdminCpRejectDialog({
                 <FormItem>
                   <FormLabel>{t("admin.checkpoints.reject.reasonLabel")}</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      handleTemplateSelect(
+                        reasonTemplates.find((template) => template.code === value),
+                        field.onChange,
+                      );
+                    }}
                     value={field.value}
-                    disabled={mutation.isPending}
+                    disabled={mutation.isPending || templatesQuery.isLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -156,11 +192,12 @@ export function AdminCpRejectDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {reasonCodes.map((code) => (
-                        <SelectItem key={code} value={code}>
-                          {t(
-                            `admin.checkpoints.reject.reason.${cpCode}.${code}` as `admin.checkpoints.reject.reason.cp0.no_confirmation`,
-                          )}
+                      {templatesQuery.isLoading && (
+                        <SelectLabel>{t("common.loading")}</SelectLabel>
+                      )}
+                      {reasonTemplates.map((template) => (
+                        <SelectItem key={template.id} value={template.code}>
+                          {template.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -174,9 +211,12 @@ export function AdminCpRejectDialog({
               name="adminComment"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {t("admin.checkpoints.reject.commentLabel")}
-                  </FormLabel>
+                  <FormLabel>{t("admin.checkpoints.reject.commentLabel")}</FormLabel>
+                  {templatesQuery.isError && (
+                    <p className="text-sm text-destructive">
+                      {t("admin.checkpoints.reject.error")}
+                    </p>
+                  )}
                   <FormControl>
                     <Textarea
                       placeholder={t("admin.checkpoints.reject.commentPlaceholder")}
@@ -200,7 +240,7 @@ export function AdminCpRejectDialog({
             type="submit"
             form="cp-reject-form"
             variant="destructive"
-            disabled={mutation.isPending}
+            disabled={submitDisabled}
           >
             {mutation.isPending
               ? t("common.loading")

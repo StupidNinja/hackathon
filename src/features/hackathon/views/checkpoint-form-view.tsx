@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Lock, Send, Save } from "lucide-react";
 
 import {
+  getCp0Topics,
   getOnboardingSnapshot,
   getSubmission,
   saveCheckpointDraft,
@@ -15,6 +16,7 @@ import {
 } from "@/common/api/supabase";
 import type {
   CheckpointCode,
+  Cp0TopicRow,
   Cp0Payload,
   Cp1Payload,
   Cp2Payload,
@@ -65,15 +67,6 @@ import type { TranslationKey } from "@/common/i18n/translations";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
 const VALID_CODES: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
-const CP0_TOPICS = [
-  "Решение задач ИИ",
-  "Чат-бот и голосовые помощники",
-  "Компьютерное зрение",
-  "Умный город и IoT",
-  "Образование и EdTech",
-  "Медицина и здоровье",
-  "Другое",
-];
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
@@ -137,9 +130,11 @@ type Cp3FormValues = z.infer<ReturnType<typeof buildCp3Schema>>;
 function Cp0Fields({
   form,
   readOnly,
+  topics,
 }: {
   form: ReturnType<typeof useForm<Cp0FormValues>>;
   readOnly: boolean;
+  topics: Cp0TopicRow[];
 }) {
   const { t } = useI18n();
   return (
@@ -186,9 +181,9 @@ function Cp0Fields({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {CP0_TOPICS.map((topic) => (
-                  <SelectItem key={topic} value={topic}>
-                    {topic}
+                {topics.map((topic) => (
+                  <SelectItem key={topic.id} value={topic.label}>
+                    {topic.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -479,6 +474,11 @@ export function CheckpointFormView() {
     queryFn: () => getSubmission(teamId!, code),
     enabled: Boolean(teamId) && isValidCode,
   });
+  const cp0TopicsQuery = useQuery({
+    queryKey: ["cp0-topics", "active"],
+    queryFn: () => getCp0Topics({ activeOnly: true }),
+    enabled: isValidCode && code === "cp0",
+  });
 
   const titleKey = `hackathon.${code}.title` as `hackathon.cp0.title`;
   const descKey = `hackathon.${code}.desc` as `hackathon.cp0.desc`;
@@ -561,10 +561,18 @@ export function CheckpointFormView() {
   });
 
   const isLoading =
-    timing.isLoading || snapshotQuery.isLoading || submissionQuery.isLoading;
+    timing.isLoading ||
+    snapshotQuery.isLoading ||
+    submissionQuery.isLoading ||
+    cp0TopicsQuery.isLoading;
 
   if (isLoading) return <LoadingScreen message={t("hackathon.loading")} />;
-  if (!isValidCode || timing.isError || snapshotQuery.isError) {
+  if (
+    !isValidCode ||
+    timing.isError ||
+    snapshotQuery.isError ||
+    cp0TopicsQuery.isError
+  ) {
     return <ErrorScreen message={t("hackathon.error")} />;
   }
 
@@ -732,7 +740,11 @@ export function CheckpointFormView() {
           {code === "cp0" && (
             <Form {...cp0Form}>
               <form className="space-y-4">
-                <Cp0Fields form={cp0Form} readOnly={readOnly} />
+                <Cp0Fields
+                  form={cp0Form}
+                  readOnly={readOnly}
+                  topics={cp0TopicsQuery.data ?? []}
+                />
               </form>
             </Form>
           )}

@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
-import { setCheckpointDecision } from "@/common/api/supabase";
+import {
+  getCheckpointRejectionTemplates,
+  setCheckpointDecision,
+} from "@/common/api/supabase";
 import type {
   CheckpointCode,
   CheckpointDecisionRow,
@@ -24,7 +27,10 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
 
 function DecisionBadge({ decision }: { decision: DecisionType }) {
   const { t } = useI18n();
-  const label = t(`admin.checkpoints.decision.${decision}` as `admin.checkpoints.decision.under_review`);
+  const label = t(
+    `admin.checkpoints.decision.${decision}` as `admin.checkpoints.decision.under_review`,
+  );
+
   switch (decision) {
     case "advanced":
       return <Badge className="bg-green-600 hover:bg-green-600">{label}</Badge>;
@@ -35,13 +41,35 @@ function DecisionBadge({ decision }: { decision: DecisionType }) {
   }
 }
 
+function formatPayloadValue(value: unknown): string {
+  if (typeof value === "boolean") {
+    return value ? "Да" : "Нет";
+  }
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "bigint"
+  ) {
+    return `${value}`;
+  }
+  if (typeof value === "symbol") {
+    return value.toString();
+  }
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return "[unsupported value]";
+}
+
 function PayloadField({ label, value }: { label: string; value: unknown }) {
   if (value === null || value === undefined || value === "") return null;
+
   return (
     <div>
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm whitespace-pre-wrap break-words">
-        {typeof value === "boolean" ? (value ? "✓ Да" : "✗ Нет") : String(value)}
+        {formatPayloadValue(value)}
       </dd>
     </div>
   );
@@ -82,17 +110,22 @@ export function AdminCheckpointTab({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const templatesQuery = useQuery({
+    queryKey: ["checkpoint-rejection-templates", cpCode, "all"],
+    queryFn: () => getCheckpointRejectionTemplates({ checkpointCode: cpCode }),
+    enabled: Boolean(decision?.reason_code),
+  });
 
   const markMutation = useMutation({
-    mutationFn: (d: Extract<DecisionType, "under_review" | "advanced">) =>
-      setCheckpointDecision(teamId, cpCode, d),
+    mutationFn: (nextDecision: Extract<DecisionType, "under_review" | "advanced">) =>
+      setCheckpointDecision(teamId, cpCode, nextDecision),
     onSuccess: () => {
       toast.success(t("admin.checkpoints.actions.view"));
       void queryClient.invalidateQueries({ queryKey: ["admin-team-decisions", teamId] });
       void queryClient.invalidateQueries({ queryKey: ["admin-cp-statuses", cpCode] });
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : t("common.error"));
     },
   });
 
@@ -109,10 +142,14 @@ export function AdminCheckpointTab({
     markMutation.isPending ||
     teamStatus === "disqualified" ||
     decision?.decision === "rejected";
+  const reasonLabel =
+    decision?.reason_code == null
+      ? null
+      : (templatesQuery.data ?? []).find((template) => template.code === decision.reason_code)
+          ?.label ?? decision.reason_code;
 
   return (
     <div className="space-y-5">
-      {/* Submission metadata */}
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
         <span>
           <strong>{t("admin.checkpoints.table.submission")}: </strong>
@@ -134,7 +171,6 @@ export function AdminCheckpointTab({
         </span>
       </div>
 
-      {/* Payload fields */}
       <dl className="grid gap-3 sm:grid-cols-2">
         {Object.entries(payload).map(([key, value]) => (
           <PayloadField
@@ -145,7 +181,6 @@ export function AdminCheckpointTab({
         ))}
       </dl>
 
-      {/* Current decision */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium">
           {t("admin.checkpoints.table.decision")}:
@@ -153,10 +188,8 @@ export function AdminCheckpointTab({
         {decision ? (
           <>
             <DecisionBadge decision={decision.decision} />
-            {decision.reason_code && (
-              <span className="text-xs text-muted-foreground">
-                {decision.reason_code}
-              </span>
+            {reasonLabel && (
+              <span className="text-xs text-muted-foreground">{reasonLabel}</span>
             )}
             {decision.admin_comment && (
               <span className="text-xs text-muted-foreground italic">
@@ -171,7 +204,6 @@ export function AdminCheckpointTab({
         )}
       </div>
 
-      {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
