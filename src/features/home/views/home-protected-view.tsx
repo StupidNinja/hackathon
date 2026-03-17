@@ -1,10 +1,25 @@
+import type { ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate } from "react-router-dom";
-import { Users, Send, AlertTriangle, Timer } from "lucide-react";
 import {
-  getOnboardingSnapshot,
-  getTeamWithMembers,
+  AlertTriangle,
+  BadgeCheck,
+  CheckCircle2,
+  CircleSlash2,
+  Send,
+  Timer,
+} from "lucide-react";
+import {
+  getCheckpointRejectionTemplates,
+  getDecisionsForTeam,
   getDisqualificationByTeamId,
+  getOnboardingSnapshot,
+  getSubmissionsForTeam,
+} from "@/common/api/supabase";
+import type {
+  CheckpointCode,
+  CheckpointDecisionRow,
+  SubmissionRow,
 } from "@/common/api/supabase";
 import {
   getDashboardPathForRole,
@@ -12,8 +27,7 @@ import {
   isStaffRole,
 } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
-import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
-import { Badge } from "@/common/components/ui/badge";
+import { ErrorScreen } from "@/common/components/loading-screen";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -24,40 +38,58 @@ import {
 } from "@/common/components/ui/card";
 import { Skeleton } from "@/common/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/common/components/ui/table";
-import { ErrorScreen } from "@/common/components/loading-screen";
-import { useHackathonTime, formatTimeRemaining } from "@/common/hooks/use-hackathon-time";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/common/components/ui/tooltip";
+import {
+  formatTimeRemaining,
+  useHackathonTime,
+} from "@/common/hooks/use-hackathon-time";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
 
-function getInitials(firstName: string | null, lastName: string | null): string {
-  return ((firstName?.[0] ?? "") + (lastName?.[0] ?? "")).toUpperCase() || "?";
+const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+type DashboardCheckpointStatus =
+  | "not_submitted"
+  | "submitted"
+  | "passed"
+  | "eliminated";
+
+function getDashboardCheckpointStatus(
+  submission: SubmissionRow | null,
+  decision: CheckpointDecisionRow | null,
+  teamDisqualified: boolean,
+): DashboardCheckpointStatus {
+  if (teamDisqualified || decision?.decision === "rejected") {
+    return "eliminated";
+  }
+
+  if (decision?.decision === "advanced") {
+    return "passed";
+  }
+
+  if (submission?.status === "submitted") {
+    return "submitted";
+  }
+
+  return "not_submitted";
 }
 
 function HomeDashboardSkeleton() {
   return (
-    <div className="space-y-5">
-      <Card>
-        <CardHeader className="space-y-2">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-72" />
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
-      </Card>
-
+    <div className="space-y-4">
       <Skeleton className="h-36 w-full" />
-      <Skeleton className="h-48 w-full" />
-      <Skeleton className="h-56 w-full" />
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-28 w-full" />
+      <Skeleton className="h-64 w-full" />
     </div>
   );
 }
@@ -65,9 +97,11 @@ function HomeDashboardSkeleton() {
 export function HomeProtectedView() {
   const { t } = useI18n();
   usePageTitle(t("dashboard.pageTitle"));
+
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;
   const userRole = getUserRole(user);
+  const timing = useHackathonTime();
 
   const onboardingQuery = useQuery({
     queryKey: ["onboarding", "snapshot", userId],
@@ -75,35 +109,54 @@ export function HomeProtectedView() {
     enabled: Boolean(userId),
   });
 
-  const teamQuery = useQuery({
-    queryKey: ["onboarding", "team", userId],
-    queryFn: () => getTeamWithMembers(userId!),
-    enabled:
-      Boolean(userId) &&
-      onboardingQuery.data?.state === "READY" &&
-      onboardingQuery.data.profile?.role === "team",
+  const teamId = onboardingQuery.data?.team?.id ?? null;
+  const shouldLoadProgress = Boolean(teamId) && timing.hasStarted;
+
+  const submissionsQuery = useQuery({
+    queryKey: ["submissions", teamId],
+    queryFn: () => getSubmissionsForTeam(teamId!),
+    enabled: shouldLoadProgress,
   });
 
-  const disqualifTeamId = onboardingQuery.data?.team?.id;
-  const disqualifEnabled =
-    onboardingQuery.data?.profile?.role === "team" &&
-    onboardingQuery.data?.team?.status === "disqualified";
+  const decisionsQuery = useQuery({
+    queryKey: ["decisions-team", teamId],
+    queryFn: () => getDecisionsForTeam(teamId!),
+    enabled: shouldLoadProgress,
+  });
 
+  const disqualifEnabled = onboardingQuery.data?.team?.status === "disqualified";
   const disqualificationQuery = useQuery({
-    queryKey: ["team-disqualification", disqualifTeamId],
-    queryFn: () => getDisqualificationByTeamId(disqualifTeamId!),
-    enabled: Boolean(disqualifTeamId) && disqualifEnabled,
+    queryKey: ["team-disqualification", teamId],
+    queryFn: () => getDisqualificationByTeamId(teamId!),
+    enabled: Boolean(teamId) && disqualifEnabled,
+  });
+  const rejectionTemplatesQuery = useQuery({
+    queryKey: ["checkpoint-rejection-templates", "all"],
+    queryFn: () => getCheckpointRejectionTemplates(),
+    enabled: shouldLoadProgress,
   });
 
-  const timing = useHackathonTime();
+  if (!userId) {
+    return null;
+  }
 
-  if (!userId) return null;
+  const isProgressPending =
+    shouldLoadProgress &&
+    (submissionsQuery.isPending || decisionsQuery.isPending);
 
-  if (onboardingQuery.isPending || (onboardingQuery.isFetching && onboardingQuery.isStale)) {
+  if (onboardingQuery.isPending || timing.isLoading || isProgressPending) {
     return <HomeDashboardSkeleton />;
   }
 
-  if (onboardingQuery.isError || !onboardingQuery.data) {
+  const hasProgressError =
+    shouldLoadProgress &&
+    (submissionsQuery.isError || decisionsQuery.isError);
+
+  if (onboardingQuery.isError || timing.isError || hasProgressError) {
+    return <ErrorScreen message={t("dashboard.error")} />;
+  }
+
+  if (!onboardingQuery.data) {
     return <ErrorScreen message={t("dashboard.error")} />;
   }
 
@@ -114,11 +167,13 @@ export function HomeProtectedView() {
 
     return <Navigate to="/profile" replace />;
   }
-  if (onboardingQuery.data.state === "NO_TEAM") return <Navigate to="/team" replace />;
+
+  if (onboardingQuery.data.state === "NO_TEAM") {
+    return <Navigate to="/team" replace />;
+  }
 
   const profile = onboardingQuery.data.profile;
   const profileRole = profile?.role ?? userRole;
-  const isTeamProfile = profile?.role === "team";
 
   if (isStaffRole(profileRole) && (!profile?.first_name || !profile?.last_name)) {
     return <Navigate to="/staff/profile" replace />;
@@ -129,131 +184,120 @@ export function HomeProtectedView() {
   }
 
   const team = onboardingQuery.data.team;
-  const members = teamQuery.data?.members ?? [];
-  const nonCaptainMembers = members.filter((m) => !m.is_captain);
-  const captainMember = members.find((m) => m.is_captain);
-  const firstName = profile?.first_name ?? "";
-  const lastName = profile?.last_name ?? "";
+  const submissions = submissionsQuery.data ?? [];
+  const decisions = decisionsQuery.data ?? [];
 
-  const nextOpenCp = timing.checkpoints.find((cp) => cp.isOpen);
+  const submissionMap = new Map<CheckpointCode, SubmissionRow>(
+    submissions.map((submission) => [submission.checkpoint_code, submission]),
+  );
+  const decisionMap = new Map<CheckpointCode, CheckpointDecisionRow>(
+    decisions.map((decision) => [decision.checkpoint_code, decision]),
+  );
 
-  const statusLabel = team?.is_registered
-    ? t("dashboard.status.registered")
-    : t("dashboard.status.unregistered");
-  const roleBadgeClass =
-    "text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
-  const teamStatusBadgeClass =
-    team?.is_registered
-      ? "text-xs bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-      : "text-xs bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300";
+  const hasRejectedDecision = decisions.some(
+    (decision) => decision.decision === "rejected",
+  );
+  const teamDisqualified = team?.status === "disqualified" || hasRejectedDecision;
+  const rejectedDecision = decisions.find((decision) => decision.decision === "rejected") ?? null;
+  const templateLabelByKey = new Map<string, string>();
+  for (const template of rejectionTemplatesQuery.data ?? []) {
+    templateLabelByKey.set(`${template.checkpoint_code}:${template.code}`, template.label);
+  }
+  const rejectedReasonLabel =
+    rejectedDecision?.reason_code == null
+      ? null
+      : templateLabelByKey.get(
+          `${rejectedDecision.checkpoint_code}:${rejectedDecision.reason_code}`,
+        ) ?? rejectedDecision.reason_code;
+
+  const cp3Decision = decisionMap.get("cp3") ?? null;
+  const teamOutcome = teamDisqualified
+    ? "disqualified"
+    : cp3Decision?.decision === "advanced"
+      ? "finalist"
+      : "in_progress";
+
+  const currentCheckpoint = timing.checkpoints.find((cp) => cp.isOpen) ?? null;
+  const upcomingCheckpoint = timing.checkpoints.find((cp) => cp.isUpcoming) ?? null;
+  const checkpointCardItem = currentCheckpoint ?? upcomingCheckpoint ?? null;
+
+  const checkpointStatuses = timing.checkpoints.map((checkpoint) => {
+    const submission = submissionMap.get(checkpoint.code) ?? null;
+    const decision = decisionMap.get(checkpoint.code) ?? null;
+    const status = getDashboardCheckpointStatus(submission, decision, teamDisqualified);
+    return { checkpoint, status };
+  });
+
+  const teamStatusConfig = {
+    disqualified: {
+      title: t("dashboard.teamStatus.disqualified"),
+      description: t("dashboard.teamStatus.disqualifiedHint"),
+      className: "border-destructive/30 bg-destructive/5",
+    },
+    finalist: {
+      title: t("dashboard.teamStatus.finalist"),
+      description: t("dashboard.teamStatus.finalistHint"),
+      className: "border-emerald-300/40 bg-emerald-50/70 dark:bg-emerald-950/20",
+    },
+    in_progress: {
+      title: t("dashboard.teamStatus.inProgress"),
+      description: t("dashboard.teamStatus.inProgressHint"),
+      className: "border-amber-300/40 bg-amber-50/70 dark:bg-amber-950/20",
+    },
+  } as const;
+
+  const showTeamStatusCard = teamOutcome !== "in_progress";
+
+  const checkpointStatusConfig: Record<
+    DashboardCheckpointStatus,
+    {
+      label: string;
+      hint: string;
+      className: string;
+      icon: ComponentType<{ className?: string }>;
+    }
+  > = {
+    not_submitted: {
+      label: t("dashboard.checkpointStatus.notSubmitted"),
+      hint: t("dashboard.checkpointStatus.notSubmittedHint"),
+      className: "border-muted bg-muted/40 text-muted-foreground",
+      icon: CircleSlash2,
+    },
+    submitted: {
+      label: t("dashboard.checkpointStatus.submitted"),
+      hint: t("dashboard.checkpointStatus.submittedHint"),
+      className: "border-blue-300/50 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300",
+      icon: CheckCircle2,
+    },
+    passed: {
+      label: t("dashboard.checkpointStatus.passed"),
+      hint: t("dashboard.checkpointStatus.passedHint"),
+      className:
+        "border-emerald-300/50 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300",
+      icon: BadgeCheck,
+    },
+    eliminated: {
+      label: t("dashboard.checkpointStatus.eliminated"),
+      hint: t("dashboard.checkpointStatus.eliminatedHint"),
+      className:
+        "border-destructive/40 bg-destructive/10 text-destructive dark:bg-destructive/20",
+      icon: AlertTriangle,
+    },
+  };
 
   return (
-    <div className="space-y-5">
-      {/* Disqualification Banner */}
-      {isTeamProfile && team?.status === "disqualified" && (
-        <Card className="border-destructive bg-destructive/5">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="size-5 text-destructive" />
-              <div>
-                <CardTitle className="text-base text-destructive">
-                  {t("dashboard.disqualification.title")}
-                </CardTitle>
-              </div>
-            </div>
-          </CardHeader>
-          {disqualificationQuery.data && (
-            <CardContent className="space-y-2">
-              <p className="text-sm">
-                <span className="font-medium">
-                  {t("dashboard.disqualification.reason")}:
-                </span>{" "}
-                {t(
-                  `admin.teams.disqualify.reason.${
-                    disqualificationQuery.data.reason_code
-                  }`
-                )}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {disqualificationQuery.data.admin_comment}
-              </p>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* Next Checkpoint card */}
-      {isTeamProfile &&
-        timing.hasStarted &&
-        team?.status !== "disqualified" &&
-        nextOpenCp && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Timer className="size-4 text-primary" />
-                <CardTitle className="text-base text-primary">
-                  {t("hackathon.dashboard.title")}
-                </CardTitle>
-              </div>
-              <CardDescription className="mt-1">{nextOpenCp.title}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              {nextOpenCp.timeRemainingMs > 0 && (
-                <span className="font-mono text-sm tabular-nums">
-                  {formatTimeRemaining(nextOpenCp.timeRemainingMs)}
-                </span>
-              )}
-              <Link
-                to={`/hackathon/${nextOpenCp.code}`}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                {t("hackathon.dashboard.go")}
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader>
-          <CardTitle className="text-base">{t("dashboard.summary")}</CardTitle>
-          <CardDescription>{t("dashboard.overview.desc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 sm:grid-cols-3">
-          <Button asChild variant="outline" className="justify-start">
-            <Link to="/hackathon">{t("dashboard.nav.hackathon")}</Link>
-          </Button>
-          <Button asChild variant="outline" className="justify-start">
-            <Link to={isTeamProfile ? "/settings/profile" : "/staff/profile"}>
-              {t("dashboard.title.profile")}
-            </Link>
-          </Button>
-          {isTeamProfile ? (
-            <Button asChild variant="outline" className="justify-start">
-              <Link to="/settings/team">{t("dashboard.title.team")}</Link>
-            </Button>
-          ) : (
-            <Button asChild variant="outline" className="justify-start">
-              <Link to={getDashboardPathForRole(profileRole)}>
-                {t("dashboard.nav.dashboard")}
-              </Link>
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
+    <div className="space-y-4">
+      <Card className="border-blue-200 bg-blue-50/70 dark:border-blue-900 dark:bg-blue-950/30">
         <CardHeader>
           <CardTitle className="text-base">{t("dashboard.telegram.title")}</CardTitle>
-          <CardDescription className="mt-1.5">
-            {t("dashboard.telegram.desc")}
-          </CardDescription>
+          <CardDescription>{t("dashboard.telegram.desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <a
             href="https://t.me/+WmFh6nzgDKY5NDky"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             <Send className="size-4" />
             {t("dashboard.telegram.join")}
@@ -261,159 +305,164 @@ export function HomeProtectedView() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">{t("dashboard.overview.title")}</CardTitle>
-          <CardDescription>{t("dashboard.overview.desc")}</CardDescription>
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Timer className="size-4 text-primary" />
+            {t("dashboard.currentCheckpoint.title")}
+          </CardTitle>
+          <CardDescription>
+            {checkpointCardItem
+              ? currentCheckpoint
+                ? t("dashboard.currentCheckpoint.active")
+                : t("dashboard.currentCheckpoint.upcoming")
+              : t("dashboard.currentCheckpoint.empty")}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {isTeamProfile && team && (
-            <Card className="bg-muted/40">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="size-4 text-muted-foreground" />
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-sm">
-                        {team.name}
-                        <Badge className={teamStatusBadgeClass}>
-                          {statusLabel}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription className="mt-0.5 text-xs">
-                        {t("dashboard.team.totalMembers", {
-                          count: members.length > 0 ? members.length : (team.members_count ?? 0),
+        <CardContent className="space-y-3">
+          {checkpointCardItem ? (
+            <>
+              <div className="text-sm font-medium">{checkpointCardItem.title}</div>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {checkpointCardItem.isOpen && checkpointCardItem.timeRemainingMs > 0 && (
+                  <span className="font-medium text-primary">
+                    {t("dashboard.currentCheckpoint.timeLeft", {
+                      time: formatTimeRemaining(checkpointCardItem.timeRemainingMs),
+                    })}
+                  </span>
+                )}
+                {checkpointCardItem.isUpcoming && checkpointCardItem.openTime && (
+                  <>
+                    <span>
+                      {t("dashboard.currentCheckpoint.startsAt", {
+                        time: dateFormatter.format(checkpointCardItem.openTime),
+                      })}
+                    </span>
+                    {checkpointCardItem.timeUntilOpenMs > 0 && (
+                      <span className="font-medium text-amber-600 dark:text-amber-400">
+                        {t("dashboard.currentCheckpoint.startsIn", {
+                          time: formatTimeRemaining(checkpointCardItem.timeUntilOpenMs),
                         })}
-                      </CardDescription>
-                    </div>
-                  </div>
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              <div>
+                <Button
+                  asChild
+                  size="sm"
+                  variant={currentCheckpoint && !teamDisqualified ? "default" : "outline"}
+                >
                   <Link
-                    to="/settings/team"
-                    className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    to={
+                      currentCheckpoint && !teamDisqualified
+                        ? `/hackathon/${currentCheckpoint.code}`
+                        : "/hackathon"
+                    }
                   >
-                    {t("common.edit")}
+                    {currentCheckpoint && !teamDisqualified
+                      ? t("dashboard.currentCheckpoint.open")
+                      : t("dashboard.currentCheckpoint.openTimeline")}
                   </Link>
-                </div>
-              </CardHeader>
-              {teamQuery.isLoading && (
-                <CardContent className="space-y-2 pt-0">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={`team-member-skeleton:${index}`} className="h-11 w-full" />
-                  ))}
-                </CardContent>
-              )}
-              {!teamQuery.isLoading && members.length > 0 && (
-                <CardContent className="pt-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("dashboard.table.name")}</TableHead>
-                        <TableHead>{t("dashboard.table.role")}</TableHead>
-                        <TableHead className="hidden sm:table-cell">{t("common.email")}</TableHead>
-                        <TableHead className="hidden md:table-cell">{t("common.telegram")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {captainMember && (
-                        <TableRow>
-                          <TableCell className="font-medium">
-                            {captainMember.first_name} {captainMember.last_name}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={roleBadgeClass}>
-                              {t("dashboard.table.captain")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                            {captainMember.email ?? t("common.noData")}
-                          </TableCell>
-                          <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                            {captainMember.telegram ?? t("common.noData")}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {nonCaptainMembers.map((member) => (
-                        <TableRow key={member.id}>
-                          <TableCell className="font-medium">
-                            {member.first_name} {member.last_name}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={roleBadgeClass}>
-                              {t("dashboard.table.member")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
-                            {member.email ?? t("common.noData")}
-                          </TableCell>
-                          <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
-                            {member.telegram ?? t("common.noData")}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              )}
-            </Card>
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button asChild size="sm" variant="outline">
+              <Link to="/hackathon">{t("dashboard.currentCheckpoint.openTimeline")}</Link>
+            </Button>
           )}
+        </CardContent>
+      </Card>
 
-          {profile && (
-            <Card className="bg-muted/40">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar size="lg">
-                      <AvatarFallback className="text-sm font-medium">
-                        {getInitials(firstName, lastName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-sm">
-                        {firstName} {lastName}
-                      </CardTitle>
-                      <CardDescription className="text-xs">{user?.email}</CardDescription>
+      {showTeamStatusCard && (
+        <Card className={teamStatusConfig[teamOutcome].className}>
+          <CardHeader>
+            <CardTitle className="text-base">{t("dashboard.teamStatus.title")}</CardTitle>
+            <CardDescription>{teamStatusConfig[teamOutcome].description}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="text-sm font-medium">{teamStatusConfig[teamOutcome].title}</div>
+            {teamOutcome === "disqualified" && (
+              <>
+                {rejectedReasonLabel && (
+                  <p className="text-sm">
+                    <span className="font-medium">{t("dashboard.disqualification.reason")}:</span>{" "}
+                    {rejectedReasonLabel}
+                  </p>
+                )}
+                {rejectedDecision?.admin_comment && (
+                  <p className="text-sm text-muted-foreground">
+                    {rejectedDecision.admin_comment}
+                  </p>
+                )}
+                {!rejectedDecision && disqualificationQuery.data && (
+                  <>
+                    <p className="text-sm">
+                      <span className="font-medium">{t("dashboard.disqualification.reason")}:</span>{" "}
+                      {t(
+                        `admin.teams.disqualify.reason.${
+                          disqualificationQuery.data.reason_code
+                        }`,
+                      )}
+                    </p>
+                    {disqualificationQuery.data.admin_comment && (
+                      <p className="text-sm text-muted-foreground">
+                        {disqualificationQuery.data.admin_comment}
+                      </p>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("dashboard.checkpointLegend.title")}</CardTitle>
+          <CardDescription>{t("dashboard.checkpointLegend.desc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TooltipProvider>
+            <div className="overflow-x-auto pb-1">
+              <div className="flex min-w-max items-start gap-0">
+                {checkpointStatuses.map(({ checkpoint, status }, index) => {
+                  const statusMeta = checkpointStatusConfig[status];
+                  const StatusIcon = statusMeta.icon;
+                  const hasNext = index < checkpointStatuses.length - 1;
+
+                  return (
+                    <div key={checkpoint.code} className="flex items-start">
+                      <div className="flex w-36 flex-col items-center px-2 text-center">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className={`flex size-8 items-center justify-center rounded-full border ${statusMeta.className}`}
+                              aria-label={`${checkpoint.code.toUpperCase()}: ${statusMeta.label}`}
+                            >
+                              <StatusIcon className="size-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={8}>
+                            {statusMeta.hint}
+                          </TooltipContent>
+                        </Tooltip>
+                        <div className="mt-3 space-y-1">
+                          <div className="text-xs font-medium leading-5">{checkpoint.title}</div>
+                          <p className="text-[11px] text-muted-foreground">{statusMeta.label}</p>
+                        </div>
+                      </div>
+                      {hasNext && <div className="mt-4 h-px w-8 bg-border" />}
                     </div>
-                  </div>
-                  <Link
-                    to={isTeamProfile ? "/settings/profile" : "/staff/profile"}
-                    className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
-                  >
-                    {t("common.edit")}
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                  {isTeamProfile && profile.grade && (
-                    <div>
-                      <dt className="text-xs text-muted-foreground">{t("dashboard.profile.grade")}</dt>
-                      <dd className="mt-0.5 font-medium">{profile.grade}</dd>
-                    </div>
-                  )}
-                  {isTeamProfile && (profile.schools?.name_ru ?? profile.custom_school_name) && (
-                    <div className="col-span-2 sm:col-span-1">
-                      <dt className="text-xs text-muted-foreground">{t("dashboard.profile.school")}</dt>
-                      <dd className="mt-0.5 font-medium">
-                        {profile.schools?.name_ru ?? profile.custom_school_name}
-                      </dd>
-                    </div>
-                  )}
-                  {isTeamProfile && profile.phone && (
-                    <div>
-                      <dt className="text-xs text-muted-foreground">{t("common.phone")}</dt>
-                      <dd className="mt-0.5 font-medium">{profile.phone}</dd>
-                    </div>
-                  )}
-                  {isTeamProfile && profile.telegram && (
-                    <div>
-                      <dt className="text-xs text-muted-foreground">{t("common.telegram")}</dt>
-                      <dd className="mt-0.5 font-medium">{profile.telegram}</dd>
-                    </div>
-                  )}
-                </dl>
-              </CardContent>
-            </Card>
-          )}
+                  );
+                })}
+              </div>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
     </div>

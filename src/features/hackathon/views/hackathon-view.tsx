@@ -1,13 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Clock, Lock, ArrowRight, Timer } from "lucide-react";
 import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Lock,
+  Timer,
+} from "lucide-react";
+import {
+  getDecisionsForTeam,
   getOnboardingSnapshot,
   getSubmissionsForTeam,
-  getDecisionsForTeam,
 } from "@/common/api/supabase";
-import type { CheckpointCode, SubmissionRow, CheckpointDecisionRow } from "@/common/api/supabase";
-import { useAuthStore } from "@/common/auth/authStore";
+import type {
+  CheckpointCode,
+  CheckpointDecisionRow,
+  SubmissionRow,
+} from "@/common/api/supabase";
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -18,9 +28,13 @@ import {
   CardTitle,
 } from "@/common/components/ui/card";
 import { ErrorScreen, LoadingScreen } from "@/common/components/loading-screen";
-import { useHackathonTime, formatTimeRemaining } from "@/common/hooks/use-hackathon-time";
+import {
+  formatTimeRemaining,
+  useHackathonTime,
+} from "@/common/hooks/use-hackathon-time";
 import { useI18n } from "@/common/i18n/use-i18n";
 import { usePageTitle } from "@/common/hooks/use-page-title";
+import { useAuthStore } from "@/common/auth/authStore";
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
@@ -66,13 +80,11 @@ function StatusBadge({ status }: { status: CpStatus }) {
   const variantMap: Record<CpStatus, { label: string; className: string }> = {
     upcoming: {
       label: t("hackathon.status.upcoming"),
-      className:
-        "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+      className: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
     },
     open: {
       label: t("hackathon.status.open"),
-      className:
-        "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+      className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
     },
     draft: {
       label: t("hackathon.status.draft"),
@@ -90,8 +102,7 @@ function StatusBadge({ status }: { status: CpStatus }) {
     },
     locked: {
       label: t("hackathon.status.locked"),
-      className:
-        "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
+      className: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
     },
     disqualified: {
       label: t("hackathon.status.disqualified"),
@@ -108,14 +119,18 @@ function StatusBadge({ status }: { status: CpStatus }) {
 }
 
 function CpIcon({ status }: { status: CpStatus }) {
-  if (status === "submitted")
-    return (
-      <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
-    );
-  if (status === "open" || status === "draft")
+  if (status === "submitted") {
+    return <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />;
+  }
+  if (status === "open" || status === "draft") {
     return <Timer className="size-5 text-blue-600 dark:text-blue-400" />;
-  if (status === "late" || status === "disqualified")
+  }
+  if (status === "late" || status === "disqualified") {
     return <AlertTriangle className="size-5 text-red-500" />;
+  }
+  if (status === "upcoming") {
+    return <Clock className="size-5 text-amber-600 dark:text-amber-400" />;
+  }
   return <Lock className="size-5 text-muted-foreground" />;
 }
 
@@ -125,7 +140,6 @@ export function HackathonView() {
 
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? null;
-
   const timing = useHackathonTime();
 
   const snapshotQuery = useQuery({
@@ -152,7 +166,11 @@ export function HackathonView() {
   const isLoading =
     timing.isLoading ||
     snapshotQuery.isLoading ||
-    Boolean(timing.hasStarted && teamId && submissionsQuery.isLoading);
+    Boolean(
+      timing.hasStarted &&
+        teamId &&
+        (submissionsQuery.isLoading || decisionsQuery.isLoading),
+    );
 
   if (isLoading) return <LoadingScreen message={t("hackathon.loading")} />;
   if (timing.isError || snapshotQuery.isError) {
@@ -161,80 +179,48 @@ export function HackathonView() {
 
   const submissions = submissionsQuery.data ?? [];
   const decisions = decisionsQuery.data ?? [];
-  const teamDisqualified = teamStatus === "disqualified";
+  const teamDisqualified =
+    teamStatus === "disqualified" ||
+    decisions.some((decision) => decision.decision === "rejected");
 
   const submissionMap = new Map<CheckpointCode, SubmissionRow>(
-    submissions.map((s) => [s.checkpoint_code, s]),
+    submissions.map((submission) => [submission.checkpoint_code, submission]),
   );
   const decisionMap = new Map<CheckpointCode, CheckpointDecisionRow>(
-    decisions.map((d) => [d.checkpoint_code, d]),
+    decisions.map((decision) => [decision.checkpoint_code, decision]),
   );
 
-  const rejectedDecision = decisions.find((d) => d.decision === "rejected");
-  const activeCheckpoint = timing.checkpoints.find((cp) => cp.isOpen) ?? null;
-
-  // Not started state
-  if (!timing.hasStarted) {
-    return (
-      <div className="mx-auto flex min-h-[76vh] w-full max-w-3xl items-center justify-center py-6">
-        <Card className="w-full">
-          <CardHeader className="border-b bg-muted/30 px-6 py-6">
-            <CardTitle className="text-xl">{t("hackathon.pageTitle")}</CardTitle>
-            <CardDescription>{t("hackathon.description")}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-            <Clock className="size-12 text-muted-foreground/40" />
-            <p className="text-lg font-medium">{t("hackathon.notStarted.title")}</p>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              {t("hackathon.notStarted.desc")}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const timeUntilT0Ms = timing.t0
+    ? Math.max(0, timing.t0.getTime() - timing.virtualNow.getTime())
+    : 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 py-2">
-      {/* Disqualification banner */}
-      {teamDisqualified && (
-        <Card className="border-destructive bg-destructive/5">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="size-5 text-destructive" />
-              <div>
-                <CardTitle className="text-base text-destructive">
-                  {t("dashboard.disqualification.title")}
-                </CardTitle>
-              </div>
-            </div>
-          </CardHeader>
-          {rejectedDecision?.admin_comment && (
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {rejectedDecision.admin_comment}
-              </p>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* Timeline */}
-      {!teamDisqualified && activeCheckpoint && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20">
-          <CardHeader className="py-4">
-            <CardDescription>{t("hackathon.timeline.currentTitle")}</CardDescription>
-            <CardTitle className="text-base">{activeCheckpoint.title}</CardTitle>
-            {activeCheckpoint.timeRemainingMs > 0 && (
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                {t("hackathon.timeline.timeLeft", {
-                  time: formatTimeRemaining(activeCheckpoint.timeRemainingMs),
-                })}
-              </p>
-            )}
-          </CardHeader>
-        </Card>
-      )}
+    <div className="mx-auto w-full max-w-4xl space-y-4 py-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("hackathon.t0.title")}</CardTitle>
+          <CardDescription>
+            {timing.t0
+              ? timing.hasStarted
+                ? t("hackathon.t0.startedAt", {
+                    time: dateFormatter.format(timing.t0),
+                  })
+                : t("hackathon.t0.startsAt", {
+                    time: dateFormatter.format(timing.t0),
+                  })
+              : t("hackathon.t0.notSet")}
+          </CardDescription>
+        </CardHeader>
+        {timing.t0 && !timing.hasStarted && timeUntilT0Ms > 0 && (
+          <CardContent className="pt-0">
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              {t("hackathon.t0.startsIn", {
+                time: formatTimeRemaining(timeUntilT0Ms),
+              })}
+            </p>
+          </CardContent>
+        )}
+      </Card>
 
       <Card>
         <CardHeader className="border-b bg-muted/30 px-6 py-5">
@@ -243,77 +229,71 @@ export function HackathonView() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {timing.checkpoints.map((cp) => {
-              const submission = submissionMap.get(cp.code) ?? null;
-              const decision = decisionMap.get(cp.code) ?? null;
+            {timing.checkpoints.map((checkpoint) => {
+              const submission = submissionMap.get(checkpoint.code) ?? null;
+              const decision = decisionMap.get(checkpoint.code) ?? null;
               const status = getCpStatus(
-                cp.isUpcoming,
-                cp.isOpen,
-                cp.isLocked,
+                checkpoint.isUpcoming,
+                checkpoint.isOpen,
+                checkpoint.isLocked,
                 submission,
                 decision,
                 teamDisqualified,
               );
-              const canOpen =
-                !teamDisqualified && status !== "upcoming";
+
+              const canOpen = !teamDisqualified && status !== "upcoming";
 
               return (
-                <div key={cp.code} className="flex items-center gap-4 px-6 py-4">
-                  {/* Icon */}
+                <div
+                  key={checkpoint.code}
+                  className="flex items-center gap-4 px-6 py-4"
+                >
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-full border bg-background">
                     <CpIcon status={status} />
                   </div>
 
-                  {/* Content */}
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium">{cp.title}</span>
+                      <span className="text-sm font-medium">{checkpoint.title}</span>
                       <StatusBadge status={status} />
                     </div>
                     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {cp.dueTime && (
+                      {checkpoint.dueTime && (
                         <span>
                           {t("hackathon.timeline.deadline", {
-                            time: dateFormatter.format(cp.dueTime),
+                            time: dateFormatter.format(checkpoint.dueTime),
                           })}
                         </span>
                       )}
-                      {cp.isOpen && cp.timeRemainingMs > 0 && (
+                      {checkpoint.isOpen && checkpoint.timeRemainingMs > 0 && (
                         <span className="font-medium text-blue-600 dark:text-blue-400">
                           {t("hackathon.timeline.timeLeft", {
-                            time: formatTimeRemaining(cp.timeRemainingMs),
+                            time: formatTimeRemaining(checkpoint.timeRemainingMs),
                           })}
                         </span>
                       )}
-                      {cp.isUpcoming && cp.openTime && (
+                      {checkpoint.isUpcoming && checkpoint.openTime && (
                         <>
                           <span>
                             {t("hackathon.timeline.startsAt", {
-                              time: dateFormatter.format(cp.openTime),
+                              time: dateFormatter.format(checkpoint.openTime),
                             })}
                           </span>
-                          {cp.timeUntilOpenMs > 0 && (
+                          {checkpoint.timeUntilOpenMs > 0 && (
                             <span className="font-medium text-amber-600 dark:text-amber-400">
                               {t("hackathon.timeline.startsIn", {
-                                time: formatTimeRemaining(cp.timeUntilOpenMs),
+                                time: formatTimeRemaining(checkpoint.timeUntilOpenMs),
                               })}
                             </span>
                           )}
                         </>
                       )}
-                      {submission?.submitted_at && (
-                        <span className="text-green-600 dark:text-green-400">
-                          {t("hackathon.form.submittedAt", {
-                            time: dateFormatter.format(
-                              new Date(submission.submitted_at),
-                            ),
-                          })}
-                        </span>
+                      {checkpoint.isUpcoming && !checkpoint.openTime && (
+                        <span>{t("hackathon.timeline.afterT0")}</span>
                       )}
                     </div>
                   </div>
 
-                  {/* Action */}
                   {canOpen && (
                     <Button
                       asChild
@@ -325,7 +305,7 @@ export function HackathonView() {
                       size="sm"
                       className="shrink-0"
                     >
-                      <Link to={`/hackathon/${cp.code}`}>
+                      <Link to={`/hackathon/${checkpoint.code}`}>
                         {t("hackathon.timeline.open")}
                         <ArrowRight className="ml-1 size-3" />
                       </Link>
