@@ -33,10 +33,27 @@ Tailwind CSS v4 via the Vite plugin, imported in [src/index.css](src/index.css).
 - Email verification is required for email/password registration.
 - OAuth users are authenticated when Supabase returns a valid session.
 
+### Google OAuth in Dev (Supabase)
+
+1. In your **dev Supabase project** open: Authentication -> Providers -> Google.
+2. Enable Google provider and paste Google OAuth Client ID/Secret.
+3. In Authentication -> URL Configuration add callback URLs for dev:
+   - `http://localhost:5173/auth/callback` (Vite dev)
+   - `http://localhost:3000/auth/callback` (optional, if using `vercel:dev`)
+4. In Google Cloud Console (OAuth client):
+   - Authorized JavaScript origins: `http://localhost:5173` (and `http://localhost:3000` if needed)
+   - Authorized redirect URI:
+     - `https://<your-dev-project-ref>.supabase.co/auth/v1/callback`
+5. In local env set frontend keys for dev Supabase and (optionally) explicit redirect:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_AUTH_REDIRECT_URL=http://localhost:5173/auth/callback`
+
 ## Environment
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_AUTH_REDIRECT_URL` (optional, defaults to `${window.location.origin}/auth/callback`)
 
 ## Vercel Dev Environment
 

@@ -1,12 +1,15 @@
 import { supabase } from "./client";
 
+const getAuthRedirectUrl = () =>
+  import.meta.env.VITE_AUTH_REDIRECT_URL ?? `${window.location.origin}/auth/callback`;
+
 export const signInWithPassword = (email: string, password: string) =>
   supabase.auth.signInWithPassword({ email, password });
 
 export const signUpWithPassword = (
   email: string,
   password: string,
-  emailRedirectTo: string = `${window.location.origin}/auth/callback`,
+  emailRedirectTo: string = getAuthRedirectUrl(),
 ) =>
   supabase.auth.signUp({
     email,
@@ -17,7 +20,7 @@ export const signUpWithPassword = (
   });
 
 export const signInWithGoogle = (
-  redirectTo: string = `${window.location.origin}/auth/callback`,
+  redirectTo: string = getAuthRedirectUrl(),
 ) =>
   supabase.auth.signInWithOAuth({
     provider: "google",
