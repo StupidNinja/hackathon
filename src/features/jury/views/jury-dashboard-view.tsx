@@ -340,8 +340,8 @@ function JurySelectedTeamPanel({
                 href={submissionPayload.presentation_link}
               />
               <SubmissionLink
-                label="Репозиторий"
-                href={submissionPayload.repo_url}
+                label="GitHub"
+                href={row.github_url}
               />
             </div>
           </div>

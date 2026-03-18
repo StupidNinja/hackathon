@@ -50,6 +50,7 @@ export type JuryQueueRow = {
   team: TeamWithCaptainRow;
   submission: SubmissionRow;
   decision: CheckpointDecisionRow;
+  github_url?: string;
 };
 
 export type JuryCriterionAverageRow = {
@@ -84,7 +85,9 @@ type SupabaseWriteResponse<T> = {
   error: Error | null;
 };
 
-function normalizeNullableText(value: string | null | undefined): string | null {
+function normalizeNullableText(
+  value: string | null | undefined,
+): string | null {
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -115,7 +118,9 @@ async function getAssessmentScores(
   return (data ?? []) as JuryAssessmentScoreRow[];
 }
 
-async function getJuryProfiles(juryIds: string[]): Promise<Map<string, JuryProfileRow>> {
+async function getJuryProfiles(
+  juryIds: string[],
+): Promise<Map<string, JuryProfileRow>> {
   const uniqueIds = [...new Set(juryIds)];
   if (uniqueIds.length === 0) return new Map();
 
@@ -146,16 +151,30 @@ function buildScoresByAssessment(
 }
 
 export async function getJuryFinalistQueue(): Promise<JuryQueueRow[]> {
-  const [teams, submissions, decisions] = await Promise.all([
+  const [teams, cp3Submissions, decisions, cp2Submissions] = await Promise.all([
     getTeamsWithCaptains(),
     getSubmissionsForCheckpoint("cp3"),
     getDecisionsForCheckpoint("cp3"),
+    getSubmissionsForCheckpoint("cp2"),
   ]);
 
   const submissionMap = new Map(
-    submissions
+    cp3Submissions
       .filter((submission) => submission.status === "submitted")
       .map((submission) => [submission.team_id, submission]),
+  );
+  const cp2GitByTeam = new Map(
+    cp2Submissions
+      .filter((submission) => submission.status === "submitted")
+      .map((submission) => {
+        const payload = submission.payload as { git_url?: unknown };
+        const gitUrl =
+          typeof payload.git_url === "string" &&
+          payload.git_url.trim().length > 0
+            ? payload.git_url
+            : undefined;
+        return [submission.team_id, gitUrl] as const;
+      }),
   );
   const decisionMap = new Map(
     decisions
@@ -176,6 +195,17 @@ export async function getJuryFinalistQueue(): Promise<JuryQueueRow[]> {
       team,
       submission: submissionMap.get(team.id) as SubmissionRow,
       decision: decisionMap.get(team.id) as CheckpointDecisionRow,
+      github_url: (() => {
+        const payload = submissionMap.get(team.id)?.payload as {
+          repo_url?: unknown;
+        };
+        const cp3RepoUrl =
+          typeof payload?.repo_url === "string" &&
+          payload.repo_url.trim().length > 0
+            ? payload.repo_url
+            : undefined;
+        return cp3RepoUrl ?? cp2GitByTeam.get(team.id);
+      })(),
     }))
     .sort((left, right) => left.team.name.localeCompare(right.team.name, "ru"));
 }
@@ -213,7 +243,9 @@ export async function upsertJuryAssessment(
     throw new Error("No active jury criteria configured");
   }
 
-  const criteriaById = new Map(activeCriteria.map((criterion) => [criterion.id, criterion]));
+  const criteriaById = new Map(
+    activeCriteria.map((criterion) => [criterion.id, criterion]),
+  );
   const seenCriterionIds = new Set<string>();
 
   for (const scoreInput of input.scores) {
@@ -228,13 +260,17 @@ export async function upsertJuryAssessment(
       throw new Error("Scores must be integers");
     }
     if (scoreInput.score < 0 || scoreInput.score > criterion.max_points) {
-      throw new Error(`Score for "${criterion.title}" must be between 0 and ${criterion.max_points}`);
+      throw new Error(
+        `Score for "${criterion.title}" must be between 0 and ${criterion.max_points}`,
+      );
     }
     seenCriterionIds.add(scoreInput.criterionId);
   }
 
   if (seenCriterionIds.size !== activeCriteria.length) {
-    throw new Error("Assessment must include a score for every active criterion");
+    throw new Error(
+      "Assessment must include a score for every active criterion",
+    );
   }
 
   const assessmentResponse = (await supabase
@@ -287,27 +323,34 @@ export async function getJurySummaryForTeam(
   const assessmentIds = assessments.map((assessment) => assessment.id);
   const scores = await getAssessmentScores(assessmentIds);
   const scoresByAssessment = buildScoresByAssessment(scores);
-  const profilesById = await getJuryProfiles(assessments.map((assessment) => assessment.jury_id));
+  const profilesById = await getJuryProfiles(
+    assessments.map((assessment) => assessment.jury_id),
+  );
 
-  const maxTotal = criteria.reduce((sum, criterion) => sum + criterion.max_points, 0);
+  const maxTotal = criteria.reduce(
+    (sum, criterion) => sum + criterion.max_points,
+    0,
+  );
 
-  const criteriaSummary: JuryCriterionAverageRow[] = criteria.map((criterion) => {
-    const criterionScores = scores.filter(
-      (score) => score.criterion_id === criterion.id,
-    );
-    const average =
-      criterionScores.length > 0
-        ? criterionScores.reduce((sum, score) => sum + score.score, 0) /
-          criterionScores.length
-        : null;
+  const criteriaSummary: JuryCriterionAverageRow[] = criteria.map(
+    (criterion) => {
+      const criterionScores = scores.filter(
+        (score) => score.criterion_id === criterion.id,
+      );
+      const average =
+        criterionScores.length > 0
+          ? criterionScores.reduce((sum, score) => sum + score.score, 0) /
+            criterionScores.length
+          : null;
 
-    return {
-      criterion_id: criterion.id,
-      title: criterion.title,
-      max_points: criterion.max_points,
-      average_score: average,
-    };
-  });
+      return {
+        criterion_id: criterion.id,
+        title: criterion.title,
+        max_points: criterion.max_points,
+        average_score: average,
+      };
+    },
+  );
 
   const assessmentSummaries = assessments.map((assessment) => {
     const assessmentScores = scoresByAssessment.get(assessment.id) ?? [];
@@ -337,8 +380,10 @@ export async function getJurySummaryForTeam(
 
   const totalAverage =
     assessmentSummaries.length > 0
-      ? assessmentSummaries.reduce((sum, assessment) => sum + assessment.total_score, 0) /
-        assessmentSummaries.length
+      ? assessmentSummaries.reduce(
+          (sum, assessment) => sum + assessment.total_score,
+          0,
+        ) / assessmentSummaries.length
       : null;
 
   return {

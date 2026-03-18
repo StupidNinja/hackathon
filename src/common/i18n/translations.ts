@@ -237,6 +237,8 @@ export const translations = {
     "hackathon.cp3.repoUrlPlaceholder": "https://github.com/...",
     "hackathon.cp3.summary": "Краткий итог",
     "hackathon.cp3.summaryPlaceholder": "Что вы сделали за 24 часа? Основные результаты.",
+    "hackathon.cp3.buildLinkRequired": "Добавьте ссылку на финальную сборку",
+    "hackathon.cp3.presentationLinkRequired": "Добавьте ссылку на презентацию",
     "hackathon.cp3.summaryRequired": "Напишите краткий итог",
     "hackathon.form.saveDraft": "Сохранить черновик",
     "hackathon.form.savingDraft": "Сохранение...",

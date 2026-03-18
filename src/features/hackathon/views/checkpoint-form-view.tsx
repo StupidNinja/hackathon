@@ -111,8 +111,14 @@ function buildCp2Schema(t: (k: TranslationKey) => string) {
 
 function buildCp3Schema(t: (k: TranslationKey) => string) {
   return z.object({
-    build_link: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
-    presentation_link: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
+    build_link: z
+      .string()
+      .min(1, t("hackathon.cp3.buildLinkRequired"))
+      .url({ message: t("hackathon.cp2.gitUrlInvalid") }),
+    presentation_link: z
+      .string()
+      .min(1, t("hackathon.cp3.presentationLinkRequired"))
+      .url({ message: t("hackathon.cp2.gitUrlInvalid") }),
     repo_url: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
     summary: z.string().min(1, t("hackathon.cp3.summaryRequired")),
   });
