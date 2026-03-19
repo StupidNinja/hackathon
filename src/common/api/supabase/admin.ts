@@ -161,24 +161,27 @@ export async function getStaffUsers(): Promise<StaffUserRow[]> {
 }
 
 export async function getAdminDashboardStats(): Promise<AdminDashboardStatsRow> {
-  const [teamsCountResult, participantsCountResult, ...checkpointPassCountResults] =
-    await Promise.all([
+  const [
+    teamsCountResult,
+    participantsCountResult,
+    ...checkpointPassCountResults
+  ] = await Promise.all([
+    supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true })
+      .eq("is_registered", true),
+    supabase
+      .from("team_members")
+      .select("id,teams!inner(id)", { count: "exact", head: true })
+      .eq("teams.is_registered", true),
+    ...DASHBOARD_CHECKPOINTS.map((code) =>
       supabase
-        .from("teams")
-        .select("id", { count: "exact", head: true })
-        .eq("is_registered", true),
-      supabase
-        .from("team_members")
-        .select("id,teams!inner(id)", { count: "exact", head: true })
-        .eq("teams.is_registered", true),
-      ...DASHBOARD_CHECKPOINTS.map((code) =>
-        supabase
-          .from("checkpoint_decisions")
-          .select("team_id", { count: "exact", head: true })
-          .eq("checkpoint_code", code)
-          .eq("decision", "advanced"),
-      ),
-    ]);
+        .from("checkpoint_decisions")
+        .select("team_id", { count: "exact", head: true })
+        .eq("checkpoint_code", code)
+        .eq("decision", "advanced"),
+    ),
+  ]);
 
   if (teamsCountResult.error) throw teamsCountResult.error;
   if (participantsCountResult.error) throw participantsCountResult.error;
@@ -313,10 +316,10 @@ export async function notifyRejection(
     let message: string | undefined;
     const responseError: unknown = response.error;
     const responseMessage =
-      typeof responseError === "object"
-        && responseError !== null
-        && "message" in responseError
-        && typeof (responseError as { message?: unknown }).message === "string"
+      typeof responseError === "object" &&
+      responseError !== null &&
+      "message" in responseError &&
+      typeof (responseError as { message?: unknown }).message === "string"
         ? (responseError as { message: string }).message
         : undefined;
     const httpError =

@@ -118,7 +118,10 @@ function buildCp3Schema(t: (k: TranslationKey) => string) {
       .string()
       .min(1, t("hackathon.cp3.presentationLinkRequired"))
       .url({ message: t("hackathon.cp2.gitUrlInvalid") }),
-    repo_url: z.string().url({ message: t("hackathon.cp2.gitUrlInvalid") }).optional().or(z.literal("")),
+    repo_url: z
+      .string()
+      .min(1, t("hackathon.cp3.repoUrlRequired"))
+      .url({ message: t("hackathon.cp2.gitUrlInvalid") }),
     summary: z.string().min(1, t("hackathon.cp3.summaryRequired")),
   });
 }
@@ -356,10 +359,7 @@ function Cp3Fields({
         name="build_link"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("hackathon.cp3.buildLink")}{" "}
-              <span className="text-muted-foreground">{t("common.optional")}</span>
-            </FormLabel>
+            <FormLabel>{t("hackathon.cp3.buildLink")}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t("hackathon.cp3.buildLinkPlaceholder")}
@@ -376,10 +376,7 @@ function Cp3Fields({
         name="presentation_link"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("hackathon.cp3.presentationLink")}{" "}
-              <span className="text-muted-foreground">{t("common.optional")}</span>
-            </FormLabel>
+            <FormLabel>{t("hackathon.cp3.presentationLink")}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t("hackathon.cp3.presentationLinkPlaceholder")}
@@ -396,10 +393,7 @@ function Cp3Fields({
         name="repo_url"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("hackathon.cp3.repoUrl")}{" "}
-              <span className="text-muted-foreground">{t("common.optional")}</span>
-            </FormLabel>
+            <FormLabel>{t("hackathon.cp3.repoUrl")}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t("hackathon.cp3.repoUrlPlaceholder")}
@@ -598,10 +592,10 @@ export function CheckpointFormView() {
     } else if (code === "cp3") {
       void cp3Form.handleSubmit((v) => {
         const clean: Cp3Payload = {
+          build_link: v.build_link,
+          presentation_link: v.presentation_link,
+          repo_url: v.repo_url,
           summary: v.summary,
-          ...(v.build_link ? { build_link: v.build_link } : {}),
-          ...(v.presentation_link ? { presentation_link: v.presentation_link } : {}),
-          ...(v.repo_url ? { repo_url: v.repo_url } : {}),
         };
         draftMutation.mutate(clean);
       })();
@@ -627,10 +621,10 @@ export function CheckpointFormView() {
     } else if (code === "cp3") {
       void cp3Form.handleSubmit((v) => {
         const clean: Cp3Payload = {
+          build_link: v.build_link,
+          presentation_link: v.presentation_link,
+          repo_url: v.repo_url,
           summary: v.summary,
-          ...(v.build_link ? { build_link: v.build_link } : {}),
-          ...(v.presentation_link ? { presentation_link: v.presentation_link } : {}),
-          ...(v.repo_url ? { repo_url: v.repo_url } : {}),
         };
         setPendingPayload(clean);
         setShowConfirm(true);
