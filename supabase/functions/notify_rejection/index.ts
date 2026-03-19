@@ -9,6 +9,7 @@ type NotifyRejectionRequest = {
   teamName?: unknown;
   cpCode?: unknown;
   reasonCode?: unknown;
+  reasonLabel?: unknown;
   adminComment?: unknown;
   accessToken?: unknown;
 };
@@ -198,6 +199,8 @@ Deno.serve(async (req) => {
     return json(400, { error: "reasonCode is required" });
   }
 
+  const reasonLabelFromBody = asNonEmptyString(body.reasonLabel);
+
   const adminComment = asNonEmptyString(body.adminComment);
   if (!adminComment) {
     return json(400, { error: "adminComment is required" });
@@ -318,7 +321,10 @@ Deno.serve(async (req) => {
     return json(404, { error: "Captain email is missing or invalid" });
   }
 
-  let reasonLabel = DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode] ?? reasonCode;
+  let reasonLabel =
+    reasonLabelFromBody
+    ?? DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode]
+    ?? reasonCode;
   if (cpCode) {
     const { data: templateRow, error: templateError } = await adminClient
       .from("checkpoint_rejection_templates")

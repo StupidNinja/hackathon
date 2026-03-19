@@ -100,11 +100,16 @@ export function AdminCpRejectDialog({
     mutationFn: ({ reasonCode, adminComment }: FormValues) =>
       setCheckpointDecision(teamId, cpCode, "rejected", reasonCode, adminComment),
     onSuccess: (_data, values) => {
+      const reasonLabel =
+        reasonTemplates.find((template) => template.code === values.reasonCode)?.label
+        ?? values.reasonCode;
+
       void notifyRejection({
         teamId,
         teamName,
         cpCode,
         reasonCode: values.reasonCode,
+        reasonLabel,
         adminComment: values.adminComment,
       }).catch(() => {
         toast.warning(t("admin.checkpoints.reject.emailWarning"));

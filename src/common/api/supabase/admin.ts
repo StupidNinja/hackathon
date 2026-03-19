@@ -49,6 +49,7 @@ export type NotifyRejectionInput = {
   teamName: string;
   cpCode: NotifyRejectionCheckpointCode | null;
   reasonCode: string;
+  reasonLabel?: string;
   adminComment: string;
 };
 
