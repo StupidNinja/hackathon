@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
     }
 
     reasonLabel =
-      (templateRow as RejectionTemplateRow | null)?.label ?? reasonCode;
+      (templateRow as RejectionTemplateRow | null)?.label ?? reasonLabel;
   }
 
   const checkpointLabel = cpCode
