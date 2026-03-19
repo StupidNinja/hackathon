@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { supabaseConfig } from "@/common/api/config/supabase.config";
 import { type ProfileRow, type TeamMemberRow } from "./onboarding";
 
 export type StaffUserRow = Pick<
@@ -300,54 +301,46 @@ export async function notifyRejection(
 ): Promise<NotifyRejectionResult> {
   const accessToken = await getAccessTokenOrThrow();
 
-  const response = await supabase.functions.invoke<NotifyRejectionResult>(
-    "notify_rejection",
-    {
-      body: {
-        ...input,
-        accessToken,
-      },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+  const endpoint = `${supabaseConfig.url}/functions/v1/notify_rejection`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: supabaseConfig.anonKey,
+      Authorization: `Bearer ${accessToken}`,
     },
-  );
+    body: JSON.stringify({
+      ...input,
+      accessToken,
+    }),
+  });
 
-  if (response.error) {
-    let message: string | undefined;
-    const responseError: unknown = response.error;
-    const responseMessage =
-      typeof responseError === "object" &&
-      responseError !== null &&
-      "message" in responseError &&
-      typeof (responseError as { message?: unknown }).message === "string"
-        ? (responseError as { message: string }).message
-        : undefined;
-    const httpError =
-      typeof responseError === "object" &&
-      responseError !== null &&
-      "context" in responseError
-        ? (responseError as { context?: Response })
-        : null;
-    if (httpError?.context) {
-      try {
-        const body: unknown = await httpError.context.json();
-        if (typeof body === "object" && body !== null && "error" in body) {
-          const bodyError = body.error;
-          if (typeof bodyError === "string") {
-            message = bodyError;
-          }
-        }
-      } catch {
-        // body not parseable as JSON — fall through
-      }
-    }
-    throw new Error(message ?? responseMessage ?? "notify_rejection failed");
+  let responseBody: unknown = null;
+  try {
+    responseBody = await response.json();
+  } catch {
+    // non-JSON response
   }
 
-  if (!response.data) {
+  if (!response.ok) {
+    const message =
+      typeof responseBody === "object" &&
+      responseBody !== null &&
+      "error" in responseBody &&
+      typeof (responseBody as { error?: unknown }).error === "string"
+        ? (responseBody as { error: string }).error
+        : `notify_rejection failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  if (
+    typeof responseBody !== "object" ||
+    responseBody === null ||
+    !("ok" in responseBody) ||
+    (responseBody as { ok?: unknown }).ok !== true
+  ) {
     throw new Error("Empty response from notify_rejection");
   }
 
-  return response.data;
+  return responseBody as NotifyRejectionResult;
 }
