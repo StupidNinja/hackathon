@@ -126,7 +126,8 @@ export const translations = {
     "dashboard.title.team": "Редактирование команды",
     "dashboard.currentCheckpoint.title": "Текущий чекпоинт",
     "dashboard.currentCheckpoint.active": "Сейчас открыт и доступен для сдачи.",
-    "dashboard.currentCheckpoint.upcoming": "Следующий чекпоинт откроется по расписанию.",
+    "dashboard.currentCheckpoint.upcoming":
+      "Следующий чекпоинт откроется по расписанию.",
     "dashboard.currentCheckpoint.empty": "Активных чекпоинтов сейчас нет.",
     "dashboard.currentCheckpoint.timeLeft": "Осталось: {{time}}",
     "dashboard.currentCheckpoint.startsAt": "Старт: {{time}}",
@@ -170,7 +171,8 @@ export const translations = {
     "hackathon.card.teamHint": "Проверьте состав команды и статус регистрации.",
     "hackathon.placeholder": "Хакатон начнется скоро",
     "hackathon.notStarted.title": "Хакатон ещё не начался",
-    "hackathon.notStarted.desc": "Страница чекпоинтов откроется после старта хакатона. Следите за объявлениями.",
+    "hackathon.notStarted.desc":
+      "Страница чекпоинтов откроется после старта хакатона. Следите за объявлениями.",
     "hackathon.loading": "Загрузка данных хакатона...",
     "hackathon.error": "Не удалось загрузить данные хакатона.",
     "hackathon.timeline.title": "Чекпоинты",
@@ -209,9 +211,11 @@ export const translations = {
     "hackathon.cp1.title": "CP1: Описание решения",
     "hackathon.cp1.desc": "Опишите ваше решение и целевую аудиторию.",
     "hackathon.cp1.shortDescription": "Краткое описание решения",
-    "hackathon.cp1.shortDescriptionPlaceholder": "Что вы создаёте? Какую проблему решаете?",
+    "hackathon.cp1.shortDescriptionPlaceholder":
+      "Что вы создаёте? Какую проблему решаете?",
     "hackathon.cp1.targetAudience": "Целевая аудитория",
-    "hackathon.cp1.targetAudiencePlaceholder": "Для кого предназначено ваше решение?",
+    "hackathon.cp1.targetAudiencePlaceholder":
+      "Для кого предназначено ваше решение?",
     "hackathon.cp1.docLink": "Ссылка на макет или документ",
     "hackathon.cp1.docLinkPlaceholder": "https://...",
     "hackathon.cp1.shortDescRequired": "Введите краткое описание",
@@ -221,9 +225,11 @@ export const translations = {
     "hackathon.cp2.gitUrl": "Ссылка на репозиторий Git",
     "hackathon.cp2.gitUrlPlaceholder": "https://github.com/your-org/your-repo",
     "hackathon.cp2.implemented": "Что уже реализовано",
-    "hackathon.cp2.implementedPlaceholder": "Опишите готовые функции и компоненты...",
+    "hackathon.cp2.implementedPlaceholder":
+      "Опишите готовые функции и компоненты...",
     "hackathon.cp2.runInstructions": "Инструкция запуска",
-    "hackathon.cp2.runInstructionsPlaceholder": "Как запустить проект локально...",
+    "hackathon.cp2.runInstructionsPlaceholder":
+      "Как запустить проект локально...",
     "hackathon.cp2.gitUrlRequired": "Введите ссылку на Git-репозиторий",
     "hackathon.cp2.gitUrlInvalid": "Введите корректный URL",
     "hackathon.cp2.implementedRequired": "Опишите реализованное",
@@ -236,7 +242,8 @@ export const translations = {
     "hackathon.cp3.repoUrl": "Ссылка на репозиторий (если отличается от CP2)",
     "hackathon.cp3.repoUrlPlaceholder": "https://github.com/...",
     "hackathon.cp3.summary": "Краткий итог",
-    "hackathon.cp3.summaryPlaceholder": "Что вы сделали за 24 часа? Основные результаты.",
+    "hackathon.cp3.summaryPlaceholder":
+      "Что вы сделали за 24 часа? Основные результаты.",
     "hackathon.cp3.buildLinkRequired": "Добавьте ссылку на финальную сборку",
     "hackathon.cp3.presentationLinkRequired": "Добавьте ссылку на презентацию",
     "hackathon.cp3.summaryRequired": "Напишите краткий итог",
@@ -245,16 +252,19 @@ export const translations = {
     "hackathon.form.submit": "Сдать чекпоинт",
     "hackathon.form.submitting": "Отправка...",
     "hackathon.form.submitConfirmTitle": "Подтвердить сдачу",
-    "hackathon.form.submitConfirmDesc": "После сдачи вы сможете обновить ответ до дедлайна. Продолжить?",
+    "hackathon.form.submitConfirmDesc":
+      "После сдачи вы сможете обновить ответ до дедлайна. Продолжить?",
     "hackathon.form.submitConfirm": "Сдать",
     "hackathon.form.submittedAt": "Сдано: {{time}}",
-    "hackathon.form.deadlinePassed": "Дедлайн истёк. Форма доступна только для просмотра.",
+    "hackathon.form.deadlinePassed":
+      "Дедлайн истёк. Форма доступна только для просмотра.",
     "hackathon.form.savedDraft": "Черновик сохранён",
     "hackathon.form.submitSuccess": "Чекпоинт сдан!",
     "hackathon.form.saveError": "Не удалось сохранить черновик.",
     "hackathon.form.submitError": "Не удалось сдать чекпоинт.",
     "hackathon.form.back": "← Назад к чекпоинтам",
-    "hackathon.form.notCaptain": "Только капитан команды может редактировать чекпоинты.",
+    "hackathon.form.notCaptain":
+      "Только капитан команды может редактировать чекпоинты.",
     "hackathon.form.disqualified": "Команда выбыла.",
     "hackathon.form.notOpenYet": "Этот чекпоинт откроется в {{time}}.",
     "hackathon.form.onlyCurrentOpen": "Сейчас открыт только {{title}}.",
@@ -379,7 +389,8 @@ export const translations = {
     "admin.teams.details.tabs.info": "Информация",
     "admin.checkpoints.pageTitle": "Чекпоинты",
     "admin.checkpoints.title": "Обзор чекпоинтов",
-    "admin.checkpoints.desc": "Просматривайте сдачи команд и принимайте решения.",
+    "admin.checkpoints.desc":
+      "Просматривайте сдачи команд и принимайте решения.",
     "admin.checkpoints.selectCp": "Выберите чекпоинт",
     "admin.checkpoints.filter.all": "Все",
     "admin.checkpoints.filter.not_submitted": "Не сдали",
@@ -413,7 +424,8 @@ export const translations = {
     "admin.checkpoints.tab.submittedAt": "Время сдачи: {{time}}",
     "admin.checkpoints.tab.updatedAt": "Обновлено: {{time}}",
     "admin.checkpoints.reject.title": "Отклонить на {{code}}",
-    "admin.checkpoints.reject.desc": "Команда будет считаться выбывшей. Капитан увидит причину.",
+    "admin.checkpoints.reject.desc":
+      "Команда будет считаться выбывшей. Капитан увидит причину.",
     "admin.checkpoints.reject.reasonLabel": "Причина",
     "admin.checkpoints.reject.commentLabel": "Комментарий для команды",
     "admin.checkpoints.reject.commentPlaceholder": "Объясните причину...",
@@ -423,21 +435,27 @@ export const translations = {
     "admin.checkpoints.reject.error": "Не удалось отклонить команду.",
     "admin.checkpoints.reject.emailWarning":
       "Команда отклонена, но письмо капитану отправить не удалось.",
-    "admin.checkpoints.reject.reason.cp0.no_confirmation": "Не подтверждено участие",
+    "admin.checkpoints.reject.reason.cp0.no_confirmation":
+      "Не подтверждено участие",
     "admin.checkpoints.reject.reason.cp0.invalid_topic": "Некорректная тема",
     "admin.checkpoints.reject.reason.cp0.other": "Другое",
-    "admin.checkpoints.reject.reason.cp1.incomplete_description": "Нет описания/не соответствует формату",
-    "admin.checkpoints.reject.reason.cp1.missing_audience": "Не указана аудитория",
+    "admin.checkpoints.reject.reason.cp1.incomplete_description":
+      "Нет описания/не соответствует формату",
+    "admin.checkpoints.reject.reason.cp1.missing_audience":
+      "Не указана аудитория",
     "admin.checkpoints.reject.reason.cp1.other": "Другое",
-    "admin.checkpoints.reject.reason.cp2.invalid_repo": "Нет репозитория/нет доступа",
+    "admin.checkpoints.reject.reason.cp2.invalid_repo":
+      "Нет репозитория/нет доступа",
     "admin.checkpoints.reject.reason.cp2.no_implementation": "Нет реализации",
     "admin.checkpoints.reject.reason.cp2.other": "Другое",
-    "admin.checkpoints.reject.reason.cp3.no_build_or_presentation": "Нет финальной сборки/презентации",
+    "admin.checkpoints.reject.reason.cp3.no_build_or_presentation":
+      "Нет финальной сборки/презентации",
     "admin.checkpoints.reject.reason.cp3.incomplete": "Неполная сдача",
     "admin.checkpoints.reject.reason.cp3.other": "Другое",
     "admin.settings.pageTitle": "Настройки хакатона",
     "admin.settings.title": "Управление временем хакатона",
-    "admin.settings.desc": "Задайте время старта и демо-режим для тестирования.",
+    "admin.settings.desc":
+      "Задайте время старта и демо-режим для тестирования.",
     "admin.settings.t0Label": "Время старта T0",
     "admin.settings.t0Placeholder": "ГГГГ-ММ-ДДTЧЧ:ММ",
     "admin.settings.setNow": "Поставить сейчас",
@@ -452,8 +470,10 @@ export const translations = {
     "admin.settings.saveSuccess": "Настройки сохранены.",
     "admin.settings.saveError": "Не удалось сохранить настройки.",
     "admin.settings.superAdminOnly": "Только суперадмин.",
-    "admin.settings.demoBanner": "⚠ Демо-режим активен — виртуальное время: {time}. Реальные участники видят сдвинутые дедлайны.",
-    "admin.staff.pageTitle": "Управление стаффом",    "admin.staff.roles.admin": "Администратор",
+    "admin.settings.demoBanner":
+      "⚠ Демо-режим активен — виртуальное время: {time}. Реальные участники видят сдвинутые дедлайны.",
+    "admin.staff.pageTitle": "Управление стаффом",
+    "admin.staff.roles.admin": "Администратор",
     "admin.staff.roles.jury": "Жюри",
     "admin.staff.list.empty": "Пока никого нет.",
     "admin.staff.list.error": "Не удалось загрузить список.",

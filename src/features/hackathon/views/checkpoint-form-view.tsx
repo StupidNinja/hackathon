@@ -461,8 +461,7 @@ export function CheckpointFormView() {
   });
 
   const teamId = snapshotQuery.data?.team?.id ?? null;
-  const isCaptain =
-    userRole === "team" && Boolean(snapshotQuery.data?.team?.captain_id === userId);
+  const isCaptain = Boolean(snapshotQuery.data?.team?.captain_id === userId);
 
   const code = cpCode as CheckpointCode;
   const isValidCode = VALID_CODES.includes(code);

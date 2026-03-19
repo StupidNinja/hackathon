@@ -457,6 +457,7 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
         .from("teams")
         .update({
           name: normalizedTeamName,
+          captain_id: input.captainId,
         })
         .eq("id", team.id)
         .select(TEAM_COLUMNS)
