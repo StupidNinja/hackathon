@@ -442,7 +442,7 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
         .insert({
           name: normalizedTeamName,
           captain_id: input.captainId,
-          is_registered: false,
+          is_registered: true,
         })
         .select(TEAM_COLUMNS)
         .single();
@@ -556,6 +556,7 @@ export async function saveTeamWithMembers(input: SaveTeamInput): Promise<{
       .from("teams")
       .update({
         members_count: totalMembers,
+        is_registered: true,
       })
       .eq("id", team.id)
       .select(TEAM_COLUMNS)
