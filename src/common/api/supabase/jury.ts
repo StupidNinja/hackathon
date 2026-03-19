@@ -313,7 +313,7 @@ export async function getJurySummaryForTeam(
   teamId: string,
 ): Promise<JuryTeamSummary> {
   const [criteria, assessmentsResponse] = await Promise.all([
-    getJuryCriteria(),
+    getJuryCriteria({ activeOnly: true }),
     supabase.from("jury_assessments").select("*").eq("team_id", teamId),
   ]);
 
