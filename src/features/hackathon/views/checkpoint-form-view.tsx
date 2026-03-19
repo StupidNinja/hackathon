@@ -23,7 +23,6 @@ import type {
   Cp3Payload,
   AnyCheckpointPayload,
 } from "@/common/api/supabase";
-import { getUserRole } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -446,7 +445,6 @@ export function CheckpointFormView() {
 
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? null;
-  const userRole = getUserRole(user);
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingPayload, setPendingPayload] =
