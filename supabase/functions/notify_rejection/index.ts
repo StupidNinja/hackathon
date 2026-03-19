@@ -208,9 +208,8 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return json(500, { error: "Missing Supabase environment configuration" });
   }
 
@@ -253,21 +252,17 @@ Deno.serve(async (req) => {
     return json(401, { error: "Missing access token" });
   }
 
-  const callerClient = createClient(supabaseUrl, anonKey, {
+  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   const {
     data: { user: caller },
     error: callerError,
-  } = await callerClient.auth.getUser(accessToken);
+  } = await adminClient.auth.getUser(accessToken);
   if (callerError || !caller) {
     return json(401, { error: "Unauthorized user" });
   }
-
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const metadataRole = asAppRole(
     (caller.app_metadata as { role?: unknown } | undefined)?.role,
