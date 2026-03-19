@@ -28,7 +28,8 @@ type RejectionTemplateRow = {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const DIRECT_DISQUALIFICATION_REASON_LABELS: Record<string, string> = {
@@ -284,7 +285,9 @@ Deno.serve(async (req) => {
   const profileRole = asAppRole(callerProfile?.role);
   const callerRole = metadataRole ?? profileRole;
   if (callerRole !== "admin") {
-    return json(403, { error: "Only admin users can send rejection notifications" });
+    return json(403, {
+      error: "Only admin users can send rejection notifications",
+    });
   }
 
   const { data: team, error: teamError } = await adminClient
@@ -316,15 +319,17 @@ Deno.serve(async (req) => {
     return json(404, { error: "Captain profile not found" });
   }
 
-  const captainEmail = normalizeEmail((captainProfile as CaptainProfileRow).email ?? "");
+  const captainEmail = normalizeEmail(
+    (captainProfile as CaptainProfileRow).email ?? "",
+  );
   if (!captainEmail) {
     return json(404, { error: "Captain email is missing or invalid" });
   }
 
   let reasonLabel =
-    reasonLabelFromBody
-    ?? DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode]
-    ?? reasonCode;
+    reasonLabelFromBody ??
+    DIRECT_DISQUALIFICATION_REASON_LABELS[reasonCode] ??
+    reasonCode;
   if (cpCode) {
     const { data: templateRow, error: templateError } = await adminClient
       .from("checkpoint_rejection_templates")
@@ -337,10 +342,13 @@ Deno.serve(async (req) => {
       return json(500, { error: templateError.message });
     }
 
-    reasonLabel = (templateRow as RejectionTemplateRow | null)?.label ?? reasonCode;
+    reasonLabel =
+      (templateRow as RejectionTemplateRow | null)?.label ?? reasonCode;
   }
 
-  const checkpointLabel = cpCode ? cpCode.toUpperCase() : "Прямая дисквалификация";
+  const checkpointLabel = cpCode
+    ? cpCode.toUpperCase()
+    : "Прямая дисквалификация";
 
   const transporter = nodemailer.createTransport({
     host: smtpHostname,
@@ -380,7 +388,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("notify_rejection sendMail failed:", error);
     return json(502, {
-      error: error instanceof Error ? error.message : "Failed to send notification email",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send notification email",
     });
   }
 
