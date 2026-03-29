@@ -17,6 +17,8 @@ import { AdminSettingsView } from "@/features/admin/views/admin-settings-view";
 import { ChangePasswordView } from "@/features/settings/views/change-password-view";
 import { CheckpointFormView } from "@/features/hackathon/views/checkpoint-form-view";
 import { HackathonView } from "@/features/hackathon/views/hackathon-view";
+import { HomePublicView } from "@/features/home/views/home-public-view";
+import { HomeRulesView } from "@/features/home/views/home-rules-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
 import { JuryDashboardView } from "@/features/jury/views/jury-dashboard-view";
 import { OnboardingEntryView } from "@/features/onboarding/views/onboarding-entry-view";
@@ -33,6 +35,14 @@ export const routes: RouteObject[] = [
     element: <NotificationsLayout />,
     children: [
       {
+        index: true,
+        element: <HomePublicView />,
+      },
+      {
+        path: "rules",
+        element: <HomeRulesView />,
+      },
+      {
         path: "auth/callback",
         element: <AuthCallbackView />,
       },
@@ -47,11 +57,10 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        path: "/",
         element: <AuthGuardLayout />,
         children: [
           {
-            index: true,
+            path: "start",
             element: <OnboardingEntryView />,
           },
           {
@@ -142,7 +151,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "*",
-                element: <Navigate to="/" replace />,
+                element: <Navigate to="/start" replace />,
               },
             ],
           },

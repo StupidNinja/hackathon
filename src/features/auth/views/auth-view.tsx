@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import {
   signInWithGoogle,
@@ -68,7 +68,15 @@ export function AuthView() {
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   usePageTitle(mode === "sign-in" ? t("auth.signInTitle") : t("auth.signUpTitle"));
+
+  useEffect(() => {
+    const requestedMode = searchParams.get("mode");
+    if (requestedMode === "sign-in" || requestedMode === "sign-up") {
+      setMode(requestedMode);
+    }
+  }, [searchParams]);
 
   const authSchema = useMemo(
     () =>
@@ -100,7 +108,7 @@ export function AuthView() {
         return;
       }
       toast.success(t("auth.toast.welcomeBack"));
-      void navigate("/");
+      void navigate("/start");
       return;
     }
 
@@ -112,7 +120,7 @@ export function AuthView() {
 
     if (data.session) {
       toast.success(t("auth.toast.accountCreated"));
-      void navigate("/");
+      void navigate("/start");
       return;
     }
 
@@ -135,7 +143,7 @@ export function AuthView() {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 px-4 py-12">
+    <div className="relative z-[60] isolate flex min-h-screen w-full items-center justify-center bg-[#f9f6f5] px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-bold tracking-tight">{t("app.name")}</h1>

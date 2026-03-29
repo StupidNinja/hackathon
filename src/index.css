@@ -11,9 +11,17 @@
     box-sizing: border-box;
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   body {
     @apply min-h-screen bg-slate-50 text-slate-900 antialiased;
     @apply bg-background text-foreground;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
   }
 
   a {
@@ -132,4 +140,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@keyframes home-float {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(5deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
 }

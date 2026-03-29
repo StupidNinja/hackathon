@@ -23,6 +23,8 @@ dist-ssr
 docs/
 .github/skills/
 codex-skills/
+DESIGN.md
+stitch_exports
 
 # Supabase CLI cache
 supabase/.temp/

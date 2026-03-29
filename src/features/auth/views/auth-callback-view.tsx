@@ -18,7 +18,7 @@ export function AuthCallbackView() {
   // As soon as a session appears in the store, navigate to the app
   useEffect(() => {
     if (session) {
-      void navigate("/", { replace: true });
+      void navigate("/start", { replace: true });
     }
   }, [session, navigate]);
 
