@@ -143,7 +143,7 @@ export function AuthView() {
   };
 
   return (
-    <div className="relative z-[60] isolate flex min-h-screen w-full items-center justify-center bg-[#f9f6f5] px-4 py-12">
+    <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-bold tracking-tight">{t("app.name")}</h1>
