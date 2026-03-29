@@ -230,9 +230,9 @@ export function HomePublicView() {
             <Link className="text-[#6a1cf6]" to="/">
               {t("home.nav.home")}
             </Link>
-            <a className="transition-colors hover:text-[#6a1cf6]" href="#">
+            <Link className="transition-colors hover:text-[#6a1cf6]" to="/schedule">
               {t("home.nav.schedule")}
-            </a>
+            </Link>
             <a className="transition-colors hover:text-[#6a1cf6]" href="#">
               {t("home.nav.instructions")}
             </a>

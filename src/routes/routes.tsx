@@ -19,6 +19,7 @@ import { CheckpointFormView } from "@/features/hackathon/views/checkpoint-form-v
 import { HackathonView } from "@/features/hackathon/views/hackathon-view";
 import { HomePublicView } from "@/features/home/views/home-public-view";
 import { HomeRulesView } from "@/features/home/views/home-rules-view";
+import { HomeScheduleView } from "@/features/home/views/home-schedule-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
 import { JuryDashboardView } from "@/features/jury/views/jury-dashboard-view";
 import { OnboardingEntryView } from "@/features/onboarding/views/onboarding-entry-view";
@@ -41,6 +42,10 @@ export const routes: RouteObject[] = [
       {
         path: "rules",
         element: <HomeRulesView />,
+      },
+      {
+        path: "schedule",
+        element: <HomeScheduleView />,
       },
       {
         path: "auth/callback",
