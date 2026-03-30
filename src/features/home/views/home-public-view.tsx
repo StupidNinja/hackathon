@@ -64,6 +64,13 @@ const partnerLogos: PartnerLogo[] = [
     logoClassName: "h-16 w-auto",
   },
   {
+    src: iituLogo,
+    altKey: "home.partners.iitu.alt",
+    nameKey: "home.partners.iitu.name",
+    logoClassName: "h-16 w-auto",
+    imageClassName: "invert",
+  },
+  {
     src: almatyHubLogo,
     altKey: "home.partners.almatyHub.alt",
     nameKey: "home.partners.almatyHub.name",
@@ -71,29 +78,10 @@ const partnerLogos: PartnerLogo[] = [
     imageClassName: "invert",
   },
   {
-    src: almatyDigitalLogo,
-    altKey: "home.partners.almatyDigital.alt",
-    nameKey: "home.partners.almatyDigital.name",
-    logoClassName: "h-16 w-auto",
-  },
-  {
-    src: almatyOblLogo,
-    altKey: "home.partners.almatyRegion.alt",
-    nameKey: "home.partners.almatyRegion.name",
-    logoClassName: "h-16 w-auto",
-  },
-  {
     src: ietuLogo,
     altKey: "home.partners.ietu.alt",
     nameKey: "home.partners.ietu.name",
     logoClassName: "h-14 w-auto",
-  },
-  {
-    src: iituLogo,
-    altKey: "home.partners.iitu.alt",
-    nameKey: "home.partners.iitu.name",
-    logoClassName: "h-16 w-auto",
-    imageClassName: "invert",
   },
   {
     src: kazNaruLogo,
