@@ -252,14 +252,20 @@ export function HomeScheduleView() {
   const activeDay = schedule[selectedDayIndex];
   const currentIsoDate = toIsoDateString(now);
 
+  useEffect(() => {
+    const currentDayIndex = schedule.findIndex((day) => day.date === currentIsoDate);
+    if (currentDayIndex >= 0 && currentDayIndex !== selectedDayIndex) {
+      setSelectedDayIndex(currentDayIndex);
+    }
+  }, [currentIsoDate, selectedDayIndex]);
+
   const liveEventIndex = useMemo(() => {
     return activeDay.events.findIndex((_, index) => {
-      const testingDay: ScheduleDay = { ...activeDay, date: currentIsoDate };
-      const { start, end } = getEventWindow(testingDay, index);
+      const { start, end } = getEventWindow(activeDay, index);
 
       return now >= start && now < end;
     });
-  }, [activeDay, currentIsoDate, now]);
+  }, [activeDay, now]);
 
   const liveEvent = liveEventIndex >= 0 ? activeDay.events[liveEventIndex] : null;
 
