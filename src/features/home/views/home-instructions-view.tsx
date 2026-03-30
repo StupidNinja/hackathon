@@ -89,11 +89,9 @@ export function HomeInstructionsView() {
         <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center justify-between gap-y-3">
           <div className="flex items-center gap-3">
             <img src={aitkLogo} alt={t("home.brand.alt")} className="h-8 w-auto" />
-            <span className="[font-family:'Space_Grotesk',sans-serif] text-base font-bold tracking-tight lg:text-xl">
-              {t("home.brand.name")}
-            </span>
+            <span className="text-base font-bold tracking-tight lg:text-xl">{t("home.brand.name")}</span>
           </div>
-          <nav className="order-3 -mx-1 flex w-full gap-4 overflow-x-auto whitespace-nowrap px-1 text-[11px] font-medium uppercase tracking-wide text-[#5c5b5b] [font-family:'Plus_Jakarta_Sans',sans-serif] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-none md:mx-0 md:w-auto md:gap-10 md:overflow-visible md:px-0 md:text-sm md:tracking-[0.18em]">
+          <nav className="order-3 -mx-1 flex w-full gap-4 overflow-x-auto whitespace-nowrap px-1 text-[11px] font-medium uppercase tracking-wide text-[#5c5b5b] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-none md:mx-0 md:w-auto md:gap-10 md:overflow-visible md:px-0 md:text-sm md:tracking-widest">
             <Link className="transition-colors hover:text-[#6a1cf6]" to="/">
               {t("home.nav.home")}
             </Link>
@@ -112,7 +110,7 @@ export function HomeInstructionsView() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16a34a] opacity-60" />
               <span className="relative inline-flex size-2 rounded-full bg-[#22c55e]" />
             </span>
-            <span className="[font-family:'Plus_Jakarta_Sans',sans-serif] text-[10px] font-semibold uppercase tracking-[0.2em] text-[#5c5b5b]/70">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]/70">
               {t("home.registrationOpen")}
             </span>
           </div>
