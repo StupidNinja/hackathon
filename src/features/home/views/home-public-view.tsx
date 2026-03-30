@@ -421,7 +421,7 @@ export function HomePublicView() {
           <div className="group relative my-6 inline-block sm:my-8 lg:my-10">
             <div className="absolute -inset-4 rounded-xl bg-gradient-to-br from-[#834fff] to-[#ac8eff] opacity-20 blur-2xl transition-opacity group-hover:opacity-40" />
             <Link
-              to="/auth?mode=sign-up"
+              to="/auth"
               className="relative inline-flex items-center rounded-xl bg-gradient-to-br from-[#834fff] to-[#ac8eff] px-8 py-4 text-base font-black uppercase tracking-[0.2em] text-white shadow-[0_20px_40px_rgba(106,28,246,0.2)] transition-transform hover:scale-[1.02] active:scale-[0.98] sm:px-12 sm:py-6 sm:text-2xl sm:tracking-widest lg:px-16 lg:py-8 lg:text-3xl"
             >
               {t("home.cta.register")}
