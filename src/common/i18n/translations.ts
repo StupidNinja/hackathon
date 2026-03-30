@@ -61,11 +61,13 @@ export const translations = {
     "instructions.steps.checkpoints.description":
       "В разделе хакатона отображается текущий этап. Работайте только в рамках активного чекпойнта и требований этого этапа.",
     "instructions.steps.checkpoints.action": "Открыть хакатон",
-    "instructions.steps.submission.title": "Сдавайте материалы через форму этапа",
+    "instructions.steps.submission.title":
+      "Сдавайте материалы через форму этапа",
     "instructions.steps.submission.description":
       "Для каждого чекпойнта заполните форму и прикрепите обязательные ссылки/файлы. Перед отправкой проверьте полноту и актуальность данных.",
     "instructions.steps.submission.action": "Перейти к сдаче",
-    "instructions.steps.deadlines.title": "Соблюдайте дедлайны и временные окна",
+    "instructions.steps.deadlines.title":
+      "Соблюдайте дедлайны и временные окна",
     "instructions.steps.deadlines.description":
       "Каждый чекпойнт имеет окно начала и окончания. Отправляйте результат заранее: поздние отправки и незавершённые формы могут быть отклонены.",
     "instructions.steps.deadlines.action": "Смотреть расписание",
@@ -174,7 +176,8 @@ export const translations = {
     "schedule.events.d1.workshop2.speaker": "Ермеков Фараби",
     "schedule.events.d1.lunch.title": "Обед",
     "schedule.events.d1.workshopsSeries.title": "Серия мастер-классов",
-    "schedule.events.d1.workshopsSeries.desc": "Qural.AI, Almaty Hub, VoiceClinic AI",
+    "schedule.events.d1.workshopsSeries.desc":
+      "Qural.AI, Almaty Hub, VoiceClinic AI",
     "schedule.events.d2.projectWork.title": "Работа над проектами",
     "schedule.events.d2.lunch.title": "Обед",
     "schedule.events.d2.closing.title": "Закрытие и награждение",
