@@ -18,6 +18,7 @@ import { ChangePasswordView } from "@/features/settings/views/change-password-vi
 import { CheckpointFormView } from "@/features/hackathon/views/checkpoint-form-view";
 import { HackathonView } from "@/features/hackathon/views/hackathon-view";
 import { HomePublicView } from "@/features/home/views/home-public-view";
+import { HomeInstructionsView } from "@/features/home/views/home-instructions-view";
 import { HomeRulesView } from "@/features/home/views/home-rules-view";
 import { HomeScheduleView } from "@/features/home/views/home-schedule-view";
 import { HomeProtectedView } from "@/features/home/views/home-protected-view";
@@ -46,6 +47,10 @@ export const routes: RouteObject[] = [
       {
         path: "schedule",
         element: <HomeScheduleView />,
+      },
+      {
+        path: "instructions",
+        element: <HomeInstructionsView />,
       },
       {
         path: "auth/callback",

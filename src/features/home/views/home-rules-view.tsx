@@ -31,7 +31,7 @@ export function HomeRulesView() {
             <Link className="transition-colors hover:text-[#6a1cf6]" to="/schedule">
               {t("home.nav.schedule")}
             </Link>
-            <Link className="transition-colors hover:text-[#6a1cf6]" to="/">
+            <Link className="transition-colors hover:text-[#6a1cf6]" to="/instructions">
               {t("home.nav.instructions")}
             </Link>
             <Link className="text-[#6a1cf6]" to="/rules">

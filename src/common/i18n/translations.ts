@@ -43,6 +43,36 @@ export const translations = {
     "home.nav.schedule": "Расписание",
     "home.nav.instructions": "Инструкция",
     "home.nav.rules": "Положение",
+    "instructions.pageTitle": "Инструкция участника",
+    "instructions.eyebrow": "ПОРЯДОК ДЕЙСТВИЙ ДЛЯ УЧАСТНИКОВ",
+    "instructions.title": "Как использовать платформу после входа",
+    "instructions.description":
+      "Следуйте шагам по порядку: сначала завершите онбординг, затем работайте с чекпойнтами и соблюдайте дедлайны. Все материалы, отправленные после дедлайна, не принимаются.",
+    "instructions.stepLabel": "Шаг {{index}}",
+    "instructions.steps.profile.title": "Заполните профиль участника",
+    "instructions.steps.profile.description":
+      "Перейдите в раздел профиля, укажите личные данные и контакты. Без заполненного профиля участие в команде и сдача этапов недоступны.",
+    "instructions.steps.profile.action": "Открыть профиль",
+    "instructions.steps.team.title": "Создайте команду или вступите в неё",
+    "instructions.steps.team.description":
+      "Укажите название команды и состав. Проверьте корректность данных всех участников перед стартом хакатона.",
+    "instructions.steps.team.action": "Открыть команду",
+    "instructions.steps.checkpoints.title": "Отслеживайте активный чекпойнт",
+    "instructions.steps.checkpoints.description":
+      "В разделе хакатона отображается текущий этап. Работайте только в рамках активного чекпойнта и требований этого этапа.",
+    "instructions.steps.checkpoints.action": "Открыть хакатон",
+    "instructions.steps.submission.title": "Сдавайте материалы через форму этапа",
+    "instructions.steps.submission.description":
+      "Для каждого чекпойнта заполните форму и прикрепите обязательные ссылки/файлы. Перед отправкой проверьте полноту и актуальность данных.",
+    "instructions.steps.submission.action": "Перейти к сдаче",
+    "instructions.steps.deadlines.title": "Соблюдайте дедлайны и временные окна",
+    "instructions.steps.deadlines.description":
+      "Каждый чекпойнт имеет окно начала и окончания. Отправляйте результат заранее: поздние отправки и незавершённые формы могут быть отклонены.",
+    "instructions.steps.deadlines.action": "Смотреть расписание",
+    "instructions.steps.rules.title": "Ориентируйтесь на положение хакатона",
+    "instructions.steps.rules.description":
+      "Перед финальной сдачей проверьте критерии оценки, требования к проекту и ограничения из положения.",
+    "instructions.steps.rules.action": "Открыть положение",
     "home.registrationOpen": "Регистрация открыта",
     "home.hero.titleLead": "AITK",
     "home.hero.titleAccent": "HACKATHON",

@@ -286,9 +286,9 @@ export function HomeScheduleView() {
             <Link className="text-[#6a1cf6]" to="/schedule">
               {t("home.nav.schedule")}
             </Link>
-            <a className="transition-colors hover:text-[#6a1cf6]" href="#">
+            <Link className="transition-colors hover:text-[#6a1cf6]" to="/instructions">
               {t("home.nav.instructions")}
-            </a>
+            </Link>
             <Link className="transition-colors hover:text-[#6a1cf6]" to="/rules">
               {t("home.nav.rules")}
             </Link>
