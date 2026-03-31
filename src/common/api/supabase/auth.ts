@@ -1,10 +1,12 @@
 import { supabase } from "./client";
 
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
 const getAuthRedirectUrl = () =>
   import.meta.env.VITE_AUTH_REDIRECT_URL ?? `${window.location.origin}/auth/callback`;
 
 export const signInWithPassword = (email: string, password: string) =>
-  supabase.auth.signInWithPassword({ email, password });
+  supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
 
 export const signUpWithPassword = (
   email: string,
@@ -12,7 +14,7 @@ export const signUpWithPassword = (
   emailRedirectTo: string = getAuthRedirectUrl(),
 ) =>
   supabase.auth.signUp({
-    email,
+    email: normalizeEmail(email),
     password,
     options: {
       emailRedirectTo,
@@ -27,7 +29,8 @@ export const signInWithGoogle = (
     options: { redirectTo },
   });
 
-export const signOut = () => supabase.auth.signOut();
+export const signOut = (scope: "global" | "local" | "others" = "global") =>
+  supabase.auth.signOut({ scope });
 
 export const getSession = () => supabase.auth.getSession();
 

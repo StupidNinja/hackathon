@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,8 +8,10 @@ import { Eye, EyeOff } from "lucide-react";
 import {
   signInWithGoogle,
   signInWithPassword,
+  signOut,
   signUpWithPassword,
 } from "@/common/api/supabase";
+import { useAuthStore } from "@/common/auth/authStore";
 import { Button } from "@/common/components/ui/button";
 import {
   Card,
@@ -64,19 +66,19 @@ function GoogleIcon() {
 
 export function AuthView() {
   const { t } = useI18n();
-  const [mode, setMode] = useState<AuthMode>("sign-in");
+  const [manualMode, setManualMode] = useState<AuthMode | null>(null);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const setSession = useAuthStore((state) => state.setSession);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const requestedMode = searchParams.get("mode");
+  const mode: AuthMode =
+    manualMode
+    ?? (requestedMode === "sign-in" || requestedMode === "sign-up"
+      ? requestedMode
+      : "sign-in");
   usePageTitle(mode === "sign-in" ? t("auth.signInTitle") : t("auth.signUpTitle"));
-
-  useEffect(() => {
-    const requestedMode = searchParams.get("mode");
-    if (requestedMode === "sign-in" || requestedMode === "sign-up") {
-      setMode(requestedMode);
-    }
-  }, [searchParams]);
 
   const authSchema = useMemo(
     () =>
@@ -102,11 +104,25 @@ export function AuthView() {
 
   const onSubmit = async (values: AuthFormValues) => {
     if (mode === "sign-in") {
-      const { error } = await signInWithPassword(values.email, values.password);
+      // Ensure no stale local session remains when switching accounts.
+      const { error: signOutError } = await signOut("local");
+      if (signOutError) {
+        toast.error(signOutError.message);
+        return;
+      }
+
+      const { data, error } = await signInWithPassword(values.email, values.password);
       if (error) {
         toast.error(error.message);
         return;
       }
+
+      if (!data.session) {
+        toast.error(t("toast.sessionExpired"));
+        return;
+      }
+
+      setSession(data.session);
       toast.success(t("auth.toast.welcomeBack"));
       void navigate("/start");
       return;
@@ -119,13 +135,14 @@ export function AuthView() {
     }
 
     if (data.session) {
+      setSession(data.session);
       toast.success(t("auth.toast.accountCreated"));
       void navigate("/start");
       return;
     }
 
     toast.success(t("auth.toast.checkEmail"));
-    setMode("sign-in");
+    setManualMode("sign-in");
   };
 
   const handleGoogleSignIn = async () => {
@@ -138,7 +155,7 @@ export function AuthView() {
   };
 
   const handleModeChange = (value: string) => {
-    setMode(value as AuthMode);
+    setManualMode(value as AuthMode);
     form.clearErrors();
   };
 
