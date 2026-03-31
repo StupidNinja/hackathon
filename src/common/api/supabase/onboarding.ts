@@ -112,13 +112,21 @@ export type SaveTeamInput = {
   members: AdditionalMemberInput[];
 };
 
+const PROFILE_REQUIRED_COLUMNS =
+  "id,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,created_at,updated_at";
+const PROFILE_OPTIONAL_COLUMNS = "email,is_super_admin,must_change_password";
+const PROFILE_SCHOOLS_RELATION = "schools(id,name_ru)";
 const PROFILE_COLUMNS =
-  "id,email,first_name,last_name,phone,telegram,grade,school_id,custom_school_name,role,is_super_admin,must_change_password,created_at,updated_at,schools(id,name_ru)";
+  `${PROFILE_REQUIRED_COLUMNS},${PROFILE_OPTIONAL_COLUMNS},${PROFILE_SCHOOLS_RELATION}`;
+const PROFILE_COLUMNS_LEGACY =
+  `${PROFILE_REQUIRED_COLUMNS},${PROFILE_SCHOOLS_RELATION}`;
+const PROFILE_COLUMNS_MINIMAL = PROFILE_REQUIRED_COLUMNS;
 const SCHOOL_COLUMNS = "id,code,name_ru,name_kz,name_en,is_active,created_at";
 const TEAM_COLUMNS =
   "id,name,captain_id,members_count,is_registered,status,created_at,updated_at";
 const TEAM_MEMBER_COLUMNS =
   "id,team_id,user_id,first_name,last_name,email,phone,telegram,is_captain";
+const APP_ROLES = new Set<AppRole>(["team", "admin", "jury"]);
 
 const escapePostgresLikePattern = (value: string): string =>
   value.replace(/[\\%_]/g, "\\$&");
@@ -143,6 +151,80 @@ const createValidationError = (message: string): Error => {
 const isStaffRole = (role: AppRole | null | undefined): role is StaffRole =>
   role === "admin" || role === "jury";
 
+type PostgrestLikeError = {
+  code?: string | null;
+  message?: string | null;
+};
+
+const isSchemaCompatibilityError = (
+  error: PostgrestLikeError | null | undefined,
+): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  const code = error.code ?? "";
+  if (code === "42703" || code === "PGRST204" || code === "PGRST200") {
+    return true;
+  }
+
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    message.includes("does not exist") ||
+    message.includes("could not find") ||
+    message.includes("schema cache")
+  );
+};
+
+const normalizeRole = (role: AppRole | null | undefined): AppRole =>
+  APP_ROLES.has(role as AppRole) ? (role as AppRole) : "team";
+
+const normalizeProfileRow = (profile: ProfileRow | null): ProfileRow | null => {
+  if (!profile) {
+    return null;
+  }
+
+  return {
+    ...profile,
+    role: normalizeRole(profile.role),
+    email: profile.email ?? null,
+    is_super_admin: profile.is_super_admin ?? false,
+    must_change_password: profile.must_change_password ?? false,
+    schools: profile.schools ?? null,
+  };
+};
+
+const toErrorObject = (
+  error: PostgrestLikeError | null | undefined,
+): Error => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  const wrappedError = new Error(error?.message ?? "Failed to load profile.");
+  if (error?.code) {
+    wrappedError.name = `PostgrestError:${error.code}`;
+  }
+
+  return wrappedError;
+};
+
+async function selectProfileByColumns(
+  userId: string,
+  columns: string,
+): Promise<{ data: ProfileRow | null; error: PostgrestLikeError | null }> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(columns)
+    .eq("id", userId)
+    .maybeSingle();
+
+  return {
+    data: (data as unknown as ProfileRow | null) ?? null,
+    error,
+  };
+}
+
 async function getStoredRole(userId: string): Promise<AppRole | null> {
   const { data, error } = await supabase
     .from("profiles")
@@ -158,17 +240,27 @@ async function getStoredRole(userId: string): Promise<AppRole | null> {
 }
 
 export async function getProfile(userId: string): Promise<ProfileRow | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", userId)
-    .maybeSingle();
+  const profileSelectAttempts = [
+    PROFILE_COLUMNS,
+    PROFILE_COLUMNS_LEGACY,
+    PROFILE_COLUMNS_MINIMAL,
+  ];
+  let lastError: PostgrestLikeError | null = null;
 
-  if (error) {
-    throw error;
+  for (const columns of profileSelectAttempts) {
+    const { data, error } = await selectProfileByColumns(userId, columns);
+
+    if (!error) {
+      return normalizeProfileRow(data);
+    }
+
+    lastError = error;
+    if (!isSchemaCompatibilityError(error)) {
+      break;
+    }
   }
 
-  return data as unknown as ProfileRow | null;
+  throw toErrorObject(lastError);
 }
 
 export async function getActiveSchools(): Promise<SchoolRow[]> {
@@ -293,15 +385,12 @@ export async function getOnboardingSnapshot(
     };
   }
 
-  const [profile, team] = await Promise.all([
-    getProfile(userId),
-    getTeamByCaptain(userId),
-  ]);
+  const profile = await getProfile(userId);
 
   if (!profile) {
     return {
       profile,
-      team,
+      team: null,
       state: "NO_PROFILE",
     };
   }
@@ -309,10 +398,12 @@ export async function getOnboardingSnapshot(
   if (profile.role !== "team") {
     return {
       profile,
-      team,
+      team: null,
       state: "READY",
     };
   }
+
+  const team = await getTeamByCaptain(userId);
 
   if (!team) {
     return {
