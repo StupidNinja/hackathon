@@ -36,6 +36,9 @@ import { useI18n } from "@/common/i18n/use-i18n";
 
 type AuthMode = "sign-in" | "sign-up";
 
+const isAlreadyRegisteredError = (message: string): boolean =>
+  /already registered|already exists|has already been registered/i.test(message);
+
 function GoogleIcon() {
   return (
     <svg
@@ -130,7 +133,19 @@ export function AuthView() {
 
     const { data, error } = await signUpWithPassword(values.email, values.password);
     if (error) {
+      if (isAlreadyRegisteredError(error.message)) {
+        toast.error(t("auth.toast.emailAlreadyRegistered"));
+        return;
+      }
+
       toast.error(error.message);
+      return;
+    }
+
+    const isExistingUserWithoutError =
+      Array.isArray(data.user?.identities) && data.user.identities.length === 0;
+    if (isExistingUserWithoutError) {
+      toast.error(t("auth.toast.emailAlreadyRegistered"));
       return;
     }
 

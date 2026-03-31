@@ -210,6 +210,8 @@ export const translations = {
       "Для регистрации по email/паролю требуется подтверждение email.",
     "auth.toast.welcomeBack": "С возвращением!",
     "auth.toast.accountCreated": "Аккаунт создан!",
+    "auth.toast.emailAlreadyRegistered":
+      "Этот email уже зарегистрирован. Используйте вход в аккаунт.",
     "auth.toast.checkEmail":
       "Проверьте email, подтвердите аккаунт и затем войдите.",
     "auth.validation.email": "Введите корректный email",
