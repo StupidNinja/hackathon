@@ -135,11 +135,13 @@ export function HomePublicView() {
     const gap = Number.parseFloat(computedStyles.columnGap || computedStyles.gap || "0") || 0;
     const step = firstCard.offsetWidth + gap;
     const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-    const slides = step > 0 ? Math.max(1, Math.ceil(maxScroll / step) + 1) : 1;
+    const normalizedStep = Math.max(step, 1);
+    // Use reachable snap points only: `ceil` can create a phantom last dot.
+    const slides = Math.max(1, Math.round(maxScroll / normalizedStep) + 1);
 
-    setSlideStep(Math.max(step, 1));
+    setSlideStep(normalizedStep);
     setTotalSlides(slides);
-    setActiveSlide((prev) => Math.min(prev, slides - 1));
+    setActiveSlide((prev) => Math.min(Math.max(prev, 0), slides - 1));
   }, []);
 
   useEffect(() => {
@@ -163,7 +165,11 @@ export function HomePublicView() {
 
     const timerId = window.setInterval(() => {
       const nextSlide = activeSlide >= totalSlides - 1 ? 0 : activeSlide + 1;
-      scroller.scrollTo({ left: nextSlide * slideStep, behavior: "smooth" });
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      scroller.scrollTo({
+        left: Math.min(nextSlide * slideStep, maxScroll),
+        behavior: "smooth",
+      });
       setActiveSlide(nextSlide);
     }, 3500);
 
@@ -175,6 +181,18 @@ export function HomePublicView() {
   const handleScroll = () => {
     const scroller = partnersScrollerRef.current;
     if (!scroller || slideStep <= 0) {
+      return;
+    }
+
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    if (maxScroll <= 0) {
+      setActiveSlide(0);
+      return;
+    }
+
+    // Ensure end-of-track always activates the last dot.
+    if (scroller.scrollLeft >= maxScroll - 2) {
+      setActiveSlide(totalSlides - 1);
       return;
     }
 
@@ -190,7 +208,11 @@ export function HomePublicView() {
 
     const delta = direction === "next" ? 1 : -1;
     const nextSlide = (activeSlide + delta + totalSlides) % totalSlides;
-    scroller.scrollTo({ left: nextSlide * slideStep, behavior: "smooth" });
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    scroller.scrollTo({
+      left: Math.min(nextSlide * slideStep, maxScroll),
+      behavior: "smooth",
+    });
     setActiveSlide(nextSlide);
   };
 
@@ -200,7 +222,11 @@ export function HomePublicView() {
       return;
     }
 
-    scroller.scrollTo({ left: slideIndex * slideStep, behavior: "smooth" });
+    const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    scroller.scrollTo({
+      left: Math.min(slideIndex * slideStep, maxScroll),
+      behavior: "smooth",
+    });
     setActiveSlide(slideIndex);
   };
 
