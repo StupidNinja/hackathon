@@ -29,9 +29,11 @@ Tailwind CSS v4 via the Vite plugin, imported in [src/index.css](src/index.css).
 ## Auth
 
 - Combined auth page at `/auth` with sign-in/sign-up modes.
+- Password recovery pages at `/auth/forgot-password` and `/auth/reset-password`.
 - Email/password auth and Google OAuth via Supabase.
 - Email verification is required for email/password registration.
 - OAuth users are authenticated when Supabase returns a valid session.
+- Supabase reset-password email redirects to `/auth/callback`, then app routes recovery sessions to `/auth/reset-password`.
 
 ### Google OAuth in Dev (Supabase)
 
@@ -40,6 +42,7 @@ Tailwind CSS v4 via the Vite plugin, imported in [src/index.css](src/index.css).
 3. In Authentication -> URL Configuration add callback URLs for dev:
    - `http://localhost:5173/auth/callback` (Vite dev)
    - `http://localhost:3000/auth/callback` (optional, if using `vercel:dev`)
+   - These same callback URLs are used for password recovery links.
 4. In Google Cloud Console (OAuth client):
    - Authorized JavaScript origins: `http://localhost:5173` (and `http://localhost:3000` if needed)
    - Authorized redirect URI:
@@ -48,12 +51,14 @@ Tailwind CSS v4 via the Vite plugin, imported in [src/index.css](src/index.css).
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
    - `VITE_AUTH_REDIRECT_URL=http://localhost:5173/auth/callback`
+   - `VITE_AUTH_RECOVERY_REDIRECT_URL=http://localhost:5173/auth/callback` (optional; defaults to `VITE_AUTH_REDIRECT_URL`)
 
 ## Environment
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_AUTH_REDIRECT_URL` (optional, defaults to `${window.location.origin}/auth/callback`)
+- `VITE_AUTH_RECOVERY_REDIRECT_URL` (optional, defaults to `VITE_AUTH_REDIRECT_URL`)
 
 ## Vercel Dev Environment
 

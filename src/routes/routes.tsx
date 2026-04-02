@@ -8,6 +8,8 @@ import { NonAuthGuardLayout } from "@/common/layouts/non-auth-guard-layout/non-a
 import { OnboardingLayout } from "@/common/layouts/onboarding-layout/onboarding-layout";
 import { AuthCallbackView } from "@/features/auth/views/auth-callback-view";
 import { AuthView } from "@/features/auth/views/auth-view";
+import { ForgotPasswordView } from "@/features/auth/views/forgot-password-view";
+import { ResetPasswordView } from "@/features/auth/views/reset-password-view";
 import { AdminStaffView } from "@/features/admin/views/admin-staff-view";
 import { AdminTeamDetailsView } from "@/features/admin/views/admin-team-details-view";
 import { AdminTeamsView } from "@/features/admin/views/admin-teams-view";
@@ -57,12 +59,20 @@ export const routes: RouteObject[] = [
         element: <AuthCallbackView />,
       },
       {
+        path: "auth/reset-password",
+        element: <ResetPasswordView />,
+      },
+      {
         path: "auth",
         element: <NonAuthGuardLayout />,
         children: [
           {
             index: true,
             element: <AuthView />,
+          },
+          {
+            path: "forgot-password",
+            element: <ForgotPasswordView />,
           },
         ],
       },

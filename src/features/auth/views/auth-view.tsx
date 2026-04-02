@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import {
   signInWithGoogle,
@@ -278,6 +278,17 @@ export function AuthView() {
                       ? t("auth.tab.signIn")
                       : t("auth.createAccount")}
                 </Button>
+
+                {mode === "sign-in" && (
+                  <div className="text-center">
+                    <Link
+                      to="/auth/forgot-password"
+                      className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                    >
+                      {t("auth.forgot.link")}
+                    </Link>
+                  </div>
+                )}
               </form>
             </Form>
 

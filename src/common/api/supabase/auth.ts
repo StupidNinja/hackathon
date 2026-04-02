@@ -5,6 +5,9 @@ const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 const getAuthRedirectUrl = () =>
   import.meta.env.VITE_AUTH_REDIRECT_URL ?? `${window.location.origin}/auth/callback`;
 
+const getRecoveryRedirectUrl = () =>
+  import.meta.env.VITE_AUTH_RECOVERY_REDIRECT_URL ?? getAuthRedirectUrl();
+
 export const signInWithPassword = (email: string, password: string) =>
   supabase.auth.signInWithPassword({ email: normalizeEmail(email), password });
 
@@ -31,6 +34,19 @@ export const signInWithGoogle = (
 
 export const signOut = (scope: "global" | "local" | "others" = "global") =>
   supabase.auth.signOut({ scope });
+
+export async function sendPasswordResetEmail(
+  email: string,
+  redirectTo: string = getRecoveryRedirectUrl(),
+): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
+    redirectTo,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
 
 export const getSession = () => supabase.auth.getSession();
 

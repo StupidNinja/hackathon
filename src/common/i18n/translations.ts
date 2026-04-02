@@ -218,6 +218,28 @@ export const translations = {
     "auth.validation.password.min":
       "Пароль должен содержать минимум 8 символов",
     "auth.validation.password.max": "Пароль слишком длинный",
+    "auth.forgot.link": "Забыли пароль?",
+    "auth.forgot.title": "Восстановление пароля",
+    "auth.forgot.desc":
+      "Введите email, и мы отправим ссылку для восстановления пароля.",
+    "auth.forgot.submit": "Отправить ссылку",
+    "auth.forgot.submitting": "Отправка...",
+    "auth.forgot.retryIn": "Повторная отправка через {{seconds}} сек.",
+    "auth.forgot.backToSignIn": "Вернуться ко входу",
+    "auth.forgot.toast.sent":
+      "Если аккаунт существует, письмо для сброса пароля уже отправлено.",
+    "auth.reset.title": "Новый пароль",
+    "auth.reset.desc": "Введите новый пароль для вашего аккаунта.",
+    "auth.reset.confirmPassword": "Подтвердите пароль",
+    "auth.reset.placeholderConfirmPassword": "Повторите пароль",
+    "auth.reset.submit": "Сохранить новый пароль",
+    "auth.reset.submitting": "Сохранение...",
+    "auth.reset.backToForgot": "Отправить письмо повторно",
+    "auth.reset.validation.confirmRequired": "Подтвердите пароль",
+    "auth.reset.validation.passwordMismatch": "Пароли не совпадают",
+    "auth.reset.toast.success": "Пароль успешно обновлен. Войдите снова.",
+    "auth.reset.toast.invalidSession":
+      "Ссылка недействительна или истекла. Запросите новую.",
     "onboarding.entry.loading": "Проверка состояния онбординга...",
     "onboarding.entry.error": "Не удалось загрузить состояние онбординга.",
     "onboarding.profile.pageTitle": "Профиль",
