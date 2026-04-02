@@ -33,6 +33,10 @@ export type CheckpointRow = {
   is_active: boolean;
 };
 
+export type UpdateCheckpointInput = Partial<
+  Pick<CheckpointRow, "title" | "due_offset_minutes" | "open_offset_minutes" | "is_active">
+>;
+
 // Strongly-typed payload shapes per checkpoint
 export type Cp0Payload = {
   confirmed: boolean;
@@ -136,6 +140,20 @@ export async function getCheckpoints(): Promise<CheckpointRow[]> {
     .order("due_offset_minutes", { ascending: true });
   if (error) throw error;
   return data as CheckpointRow[];
+}
+
+export async function updateCheckpoint(
+  code: CheckpointCode,
+  patch: UpdateCheckpointInput,
+): Promise<CheckpointRow> {
+  const { data, error } = await supabase
+    .from("checkpoints")
+    .update(patch)
+    .eq("code", code)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as CheckpointRow;
 }
 
 // ============================================================
