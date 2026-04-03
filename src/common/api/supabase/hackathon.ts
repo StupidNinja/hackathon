@@ -9,14 +9,6 @@ export type CheckpointCode = "cp0" | "cp1" | "cp2" | "cp3";
 export type SubmissionStatus = "draft" | "submitted";
 export type DecisionType = "under_review" | "advanced" | "rejected";
 
-const CHECKPOINT_ORDER: Record<CheckpointCode, number> = {
-  cp0: 0,
-  cp1: 1,
-  cp2: 2,
-  cp3: 3,
-};
-const CHECKPOINT_SEQUENCE: CheckpointCode[] = ["cp0", "cp1", "cp2", "cp3"];
-
 export type HackathonSettingsRow = {
   id: number;
   t0: string | null; // ISO timestamptz, null = not started
@@ -269,24 +261,6 @@ export async function getDecisionsForCheckpoint(
   return (data ?? []) as CheckpointDecisionRow[];
 }
 
-type AdvancedDecisionForFilter = Pick<
-  CheckpointDecisionRow,
-  "team_id" | "checkpoint_code"
->;
-
-async function getAdvancedDecisionsForCodes(
-  cpCodes: CheckpointCode[],
-): Promise<AdvancedDecisionForFilter[]> {
-  if (cpCodes.length === 0) return [];
-  const { data, error } = await supabase
-    .from("checkpoint_decisions")
-    .select("team_id, checkpoint_code")
-    .in("checkpoint_code", cpCodes)
-    .eq("decision", "advanced");
-  if (error) throw error;
-  return (data ?? []) as AdvancedDecisionForFilter[];
-}
-
 export async function getDecisionsForTeamAdmin(
   teamId: string,
 ): Promise<CheckpointDecisionRow[]> {
@@ -318,16 +292,10 @@ export async function getSubmissionsForTeamAdmin(
 export async function getTeamCheckpointStatuses(
   cpCode: CheckpointCode,
 ): Promise<TeamCheckpointStatusRow[]> {
-  const selectedOrder = CHECKPOINT_ORDER[cpCode];
-  const priorCheckpointCodes = CHECKPOINT_SEQUENCE.filter(
-    (code) => CHECKPOINT_ORDER[code] < selectedOrder,
-  );
-
-  const [teams, submissions, decisions, advancedPriorDecisions] = await Promise.all([
+  const [teams, submissions, decisions] = await Promise.all([
     getTeamsWithCaptains(),
     getSubmissionsForCheckpoint(cpCode),
     getDecisionsForCheckpoint(cpCode),
-    getAdvancedDecisionsForCodes(priorCheckpointCodes),
   ]);
 
   const submissionMap = new Map<string, SubmissionRow>(
@@ -336,22 +304,8 @@ export async function getTeamCheckpointStatuses(
   const decisionMap = new Map<string, CheckpointDecisionRow>(
     decisions.map((d) => [d.team_id, d]),
   );
-  const advancedPriorCodesByTeam = new Map<string, Set<CheckpointCode>>();
-  for (const decision of advancedPriorDecisions) {
-    const advancedCodes = advancedPriorCodesByTeam.get(decision.team_id) ?? new Set();
-    advancedCodes.add(decision.checkpoint_code);
-    advancedPriorCodesByTeam.set(decision.team_id, advancedCodes);
-  }
 
   const visibleTeams = teams.filter((team) => {
-    const submittedPriorCodes = advancedPriorCodesByTeam.get(team.id);
-    const reachedCurrentCheckpoint = priorCheckpointCodes.every((code) =>
-      submittedPriorCodes?.has(code),
-    );
-    if (!reachedCurrentCheckpoint) {
-      return false;
-    }
-
     if (team.status !== "disqualified") {
       return true;
     }
