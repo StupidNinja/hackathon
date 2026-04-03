@@ -15,6 +15,7 @@ import { AdminTeamDetailsView } from "@/features/admin/views/admin-team-details-
 import { AdminTeamsView } from "@/features/admin/views/admin-teams-view";
 import { AdminDashboardView } from "@/features/admin/views/admin-dashboard-view";
 import { AdminCheckpointsReviewView } from "@/features/admin/views/admin-checkpoints-review-view";
+import { AdminRankingView } from "@/features/admin/views/admin-ranking-view";
 import { AdminSettingsView } from "@/features/admin/views/admin-settings-view";
 import { ChangePasswordView } from "@/features/settings/views/change-password-view";
 import { CheckpointFormView } from "@/features/hackathon/views/checkpoint-form-view";
@@ -138,6 +139,10 @@ export const routes: RouteObject[] = [
                   {
                     path: "checkpoints",
                     element: <AdminCheckpointsReviewView />,
+                  },
+                  {
+                    path: "ranking",
+                    element: <AdminRankingView />,
                   },
                   {
                     path: "settings",

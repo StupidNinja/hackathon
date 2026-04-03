@@ -67,6 +67,17 @@ export type AdminDashboardStatsRow = {
   passed_by_checkpoint: Record<DashboardCheckpointCode, number>;
 };
 
+export type AdminTeamRankingRow = {
+  rank: number;
+  team_id: string;
+  team_name: string;
+  captain_name: string;
+  captain_email: string | null;
+  total_score_sum: number;
+  assessments_count: number;
+  unique_jury_count: number;
+};
+
 type RawCaptainProfile = {
   id: string;
   first_name: string | null;
@@ -97,6 +108,21 @@ type RawDisqualificationRow = {
   admin_comment: string;
   created_by: string;
   created_at: string;
+};
+
+type RawTeamIdRow = {
+  team_id: string;
+};
+
+type RawJuryAssessmentRow = {
+  id: string;
+  team_id: string;
+  jury_id: string;
+};
+
+type RawAssessmentScoreRow = {
+  assessment_id: string;
+  score: number;
 };
 
 function resolveSchoolName(captain: RawCaptainProfile): string | null {
@@ -205,6 +231,96 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStatsRow> 
     total_participants: participantsCountResult.count ?? 0,
     passed_by_checkpoint: passedByCheckpoint,
   };
+}
+
+export async function getAdminTeamRanking(): Promise<AdminTeamRankingRow[]> {
+  const [teams, cp3SubmittedResult, cp3AdvancedResult, assessmentsResult, scoresResult] =
+    await Promise.all([
+      getTeamsWithCaptains(),
+      supabase
+        .from("submissions")
+        .select("team_id")
+        .eq("checkpoint_code", "cp3")
+        .eq("status", "submitted"),
+      supabase
+        .from("checkpoint_decisions")
+        .select("team_id")
+        .eq("checkpoint_code", "cp3")
+        .eq("decision", "advanced"),
+      supabase.from("jury_assessments").select("id,team_id,jury_id"),
+      supabase.from("jury_assessment_scores").select("assessment_id,score"),
+    ]);
+
+  if (cp3SubmittedResult.error) throw cp3SubmittedResult.error;
+  if (cp3AdvancedResult.error) throw cp3AdvancedResult.error;
+  if (assessmentsResult.error) throw assessmentsResult.error;
+  if (scoresResult.error) throw scoresResult.error;
+
+  const cp3SubmittedSet = new Set(
+    ((cp3SubmittedResult.data ?? []) as RawTeamIdRow[]).map((row) => row.team_id),
+  );
+  const cp3AdvancedSet = new Set(
+    ((cp3AdvancedResult.data ?? []) as RawTeamIdRow[]).map((row) => row.team_id),
+  );
+
+  const assessments = (assessmentsResult.data ?? []) as RawJuryAssessmentRow[];
+  const scores = (scoresResult.data ?? []) as RawAssessmentScoreRow[];
+
+  const assessmentTotalById = new Map<string, number>();
+  for (const score of scores) {
+    const current = assessmentTotalById.get(score.assessment_id) ?? 0;
+    assessmentTotalById.set(score.assessment_id, current + score.score);
+  }
+
+  const assessmentsByTeamId = new Map<string, RawJuryAssessmentRow[]>();
+  for (const assessment of assessments) {
+    const current = assessmentsByTeamId.get(assessment.team_id) ?? [];
+    current.push(assessment);
+    assessmentsByTeamId.set(assessment.team_id, current);
+  }
+
+  const rows = teams
+    .filter((team) => team.status !== "disqualified")
+    .filter((team) => cp3SubmittedSet.has(team.id) && cp3AdvancedSet.has(team.id))
+    .map((team) => {
+      const teamAssessments = assessmentsByTeamId.get(team.id) ?? [];
+      const scoredAssessments = teamAssessments.filter((assessment) =>
+        assessmentTotalById.has(assessment.id),
+      );
+      const totalScoreSum = scoredAssessments.reduce(
+        (sum, assessment) => sum + (assessmentTotalById.get(assessment.id) ?? 0),
+        0,
+      );
+      const juryIds = new Set(scoredAssessments.map((assessment) => assessment.jury_id));
+
+      return {
+        team,
+        totalScoreSum,
+        assessmentsCount: scoredAssessments.length,
+        uniqueJuryCount: juryIds.size,
+      };
+    })
+    .filter((row) => row.assessmentsCount > 0)
+    .sort((left, right) => {
+      if (right.totalScoreSum !== left.totalScoreSum) {
+        return right.totalScoreSum - left.totalScoreSum;
+      }
+      return left.team.name.localeCompare(right.team.name, "ru");
+    })
+    .map((row, index) => ({
+      rank: index + 1,
+      team_id: row.team.id,
+      team_name: row.team.name,
+      captain_name:
+        `${row.team.captain.first_name ?? ""} ${row.team.captain.last_name ?? ""}`.trim() ||
+        "—",
+      captain_email: row.team.captain.email,
+      total_score_sum: row.totalScoreSum,
+      assessments_count: row.assessmentsCount,
+      unique_jury_count: row.uniqueJuryCount,
+    }));
+
+  return rows;
 }
 
 async function fetchCaptainProfiles(

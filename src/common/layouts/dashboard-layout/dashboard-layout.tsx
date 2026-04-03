@@ -15,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { useHackathonTime } from "@/common/hooks/use-hackathon-time";
-import { signOut, getProfile } from "@/common/api/supabase";
+import { signOut, getHackathonSettings, getProfile } from "@/common/api/supabase";
 import { getDashboardPathForRole, getUserRole, isSuperAdmin } from "@/common/auth/roles";
 import { useAuthStore } from "@/common/auth/authStore";
 import { Avatar, AvatarFallback } from "@/common/components/ui/avatar";
@@ -77,8 +77,15 @@ function AppSidebar() {
     enabled: Boolean(userId) && role === "admin",
     staleTime: 60_000,
   });
+  const settingsQuery = useQuery({
+    queryKey: ["hackathon-settings"],
+    queryFn: getHackathonSettings,
+    enabled: role === "admin",
+    staleTime: 30_000,
+  });
 
   const isUserSuperAdmin = isSuperAdmin(profileQuery.data);
+  const rankingsEnabled = settingsQuery.data?.rankings_enabled === true;
 
   const navItems = role === "admin"
     ? [
@@ -89,6 +96,9 @@ function AppSidebar() {
         },
         { label: t("admin.nav.teams"), to: "/admin/teams", icon: Users },
         { label: t("admin.nav.checkpoints"), to: "/admin/checkpoints", icon: ListChecks },
+        ...(rankingsEnabled
+          ? [{ label: t("admin.nav.ranking"), to: "/admin/ranking", icon: Trophy }]
+          : []),
         ...(isUserSuperAdmin
           ? [
               { label: t("admin.nav.staff"), to: "/admin/staff", icon: ShieldCheck },
@@ -212,6 +222,7 @@ export function DashboardLayout() {
     "/admin/teams": t("admin.nav.teams"),
     "/admin/staff": t("admin.nav.staff"),
     "/admin/checkpoints": t("admin.checkpoints.pageTitle"),
+    "/admin/ranking": t("admin.ranking.pageTitle"),
     "/admin/settings": t("admin.settings.pageTitle"),
     "/jury/dashboard": t("dashboard.nav.dashboard"),
     "/hackathon": t("hackathon.pageTitle"),

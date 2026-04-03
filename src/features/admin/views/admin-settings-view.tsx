@@ -66,6 +66,7 @@ const settingsSchema = z.object({
   t0: z.string().optional(),
   demo_mode: z.boolean(),
   demo_offset_minutes: z.number().int().min(0).max(99999),
+  rankings_enabled: z.boolean(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -190,11 +191,18 @@ export function AdminSettingsView() {
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      t0: "",
+      demo_mode: false,
+      demo_offset_minutes: 0,
+      rankings_enabled: false,
+    },
     values: settingsQuery.data
       ? {
           t0: isoToLocalInput(settingsQuery.data.t0),
           demo_mode: settingsQuery.data.demo_mode,
           demo_offset_minutes: settingsQuery.data.demo_offset_minutes,
+          rankings_enabled: settingsQuery.data.rankings_enabled,
         }
       : undefined,
   });
@@ -213,6 +221,7 @@ export function AdminSettingsView() {
         t0: values.t0 ? localInputToIso(values.t0) : null,
         demo_mode: values.demo_mode,
         demo_offset_minutes: values.demo_offset_minutes,
+        rankings_enabled: values.rankings_enabled,
       }),
     onSuccess: () => {
       toast.success(t("admin.settings.save"));
@@ -354,18 +363,18 @@ export function AdminSettingsView() {
     <div className="mx-auto w-full max-w-6xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold">{t("admin.settings.pageTitle")}</h1>
-        <p className="text-sm text-muted-foreground">
-          Управляйте временем хакатона, темами CP0, причинами отклонения и критериями жюри.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("admin.settings.pageDesc")}</p>
       </div>
 
       <Tabs defaultValue="time" className="space-y-4">
         <div className="overflow-x-auto">
           <TabsList className="h-9 min-w-max gap-1">
-            <TabsTrigger value="time">Время этапов</TabsTrigger>
-            <TabsTrigger value="cp0-topics">Темы проектов (CP0)</TabsTrigger>
-            <TabsTrigger value="rejections">Шаблоны отклонения</TabsTrigger>
-            <TabsTrigger value="jury">Критерии жюри</TabsTrigger>
+            <TabsTrigger value="time">{t("admin.settings.tabs.time")}</TabsTrigger>
+            <TabsTrigger value="durations">{t("admin.settings.tabs.durations")}</TabsTrigger>
+            <TabsTrigger value="features">{t("admin.settings.tabs.features")}</TabsTrigger>
+            <TabsTrigger value="cp0-topics">{t("admin.settings.tabs.cp0")}</TabsTrigger>
+            <TabsTrigger value="rejections">{t("admin.settings.tabs.rejections")}</TabsTrigger>
+            <TabsTrigger value="jury">{t("admin.settings.tabs.jury")}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -505,167 +514,227 @@ export function AdminSettingsView() {
               </span>
             )}
           </div>
+        </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t("admin.settings.durationTitle")}</CardTitle>
-              <CardDescription>{t("admin.settings.durationDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Form {...checkpointsForm}>
-                <form
-                  id="checkpoint-durations-form"
-                  onSubmit={(event) => {
-                    void checkpointsForm.handleSubmit(onDurationsSubmit)(event);
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("admin.settings.durationCheckpoint")}</TableHead>
-                          <TableHead>{t("admin.settings.durationMinutes")}</TableHead>
-                          <TableHead>{t("admin.settings.durationHoursMinutes")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {durationRows.map((checkpoint, index) => (
-                          <TableRow key={checkpoint.code}>
-                            <TableCell className="font-medium uppercase">{checkpoint.code}</TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="text-[11px] font-medium text-muted-foreground">
-                                  {t("admin.settings.durationMinutesHint")}
-                                </p>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  step={1}
-                                  disabled={saveDurationsMutation.isPending}
-                                  value={checkpoint.duration_minutes}
-                                  onChange={(event) => {
-                                    updateMinutes(index, Number(event.target.value));
-                                  }}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="text-[11px] font-medium text-muted-foreground">
-                                  {t("admin.settings.durationSplitHint")}
-                                </p>
-                                <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/40 p-2">
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                      {t("admin.settings.durationHoursShort")}
-                                    </p>
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      step={1}
-                                      disabled={saveDurationsMutation.isPending}
-                                      value={checkpoint.duration_hours}
-                                      onChange={(event) => {
-                                        updateHoursMinutes(
-                                          index,
-                                          Number(event.target.value),
-                                          checkpoint.duration_remainder_minutes,
-                                        );
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                      {t("admin.settings.durationMinutesShort")}
-                                    </p>
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      max={59}
-                                      step={1}
-                                      disabled={saveDurationsMutation.isPending}
-                                      value={checkpoint.duration_remainder_minutes}
-                                      onChange={(event) => {
-                                        updateHoursMinutes(
-                                          index,
-                                          checkpoint.duration_hours,
-                                          Number(event.target.value),
-                                        );
-                                      }}
-                                    />
+          <TabsContent value="durations" className="space-y-5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">{t("admin.settings.durationTitle")}</CardTitle>
+                <CardDescription>{t("admin.settings.durationDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Form {...checkpointsForm}>
+                  <form
+                    id="checkpoint-durations-form"
+                    onSubmit={(event) => {
+                      void checkpointsForm.handleSubmit(onDurationsSubmit)(event);
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("admin.settings.durationCheckpoint")}</TableHead>
+                            <TableHead>{t("admin.settings.durationMinutes")}</TableHead>
+                            <TableHead>{t("admin.settings.durationHoursMinutes")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {durationRows.map((checkpoint, index) => (
+                            <TableRow key={checkpoint.code}>
+                              <TableCell className="font-medium uppercase">{checkpoint.code}</TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="text-[11px] font-medium text-muted-foreground">
+                                    {t("admin.settings.durationMinutesHint")}
+                                  </p>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    disabled={saveDurationsMutation.isPending}
+                                    value={checkpoint.duration_minutes}
+                                    onChange={(event) => {
+                                      updateMinutes(index, Number(event.target.value));
+                                    }}
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="text-[11px] font-medium text-muted-foreground">
+                                    {t("admin.settings.durationSplitHint")}
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/40 p-2">
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                        {t("admin.settings.durationHoursShort")}
+                                      </p>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        step={1}
+                                        disabled={saveDurationsMutation.isPending}
+                                        value={checkpoint.duration_hours}
+                                        onChange={(event) => {
+                                          updateHoursMinutes(
+                                            index,
+                                            Number(event.target.value),
+                                            checkpoint.duration_remainder_minutes,
+                                          );
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                        {t("admin.settings.durationMinutesShort")}
+                                      </p>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        max={59}
+                                        step={1}
+                                        disabled={saveDurationsMutation.isPending}
+                                        value={checkpoint.duration_remainder_minutes}
+                                        onChange={(event) => {
+                                          updateHoursMinutes(
+                                            index,
+                                            checkpoint.duration_hours,
+                                            Number(event.target.value),
+                                          );
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  <div className="space-y-2 rounded-md bg-muted/40 p-3">
-                    <p className="text-sm font-medium">{t("admin.settings.durationPreviewTitle")}</p>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      {durationPreviewRows.map((row) => (
-                        <p key={`preview-${row.code}`}>
-                          {row.code.toUpperCase()}: +{row.openOffset} → +{row.dueOffset} мин ({row.duration} мин)
-                          {row.openAt && row.dueAt ? ` | ${row.openAt} - ${row.dueAt}` : ""}
-                        </p>
-                      ))}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                  </div>
 
-                  {timing.t0 && (
-                    <p className="text-xs text-amber-600">
-                      {t("admin.settings.durationStartedWarning")}
-                    </p>
-                  )}
+                    <div className="space-y-2 rounded-md bg-muted/40 p-3">
+                      <p className="text-sm font-medium">{t("admin.settings.durationPreviewTitle")}</p>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        {durationPreviewRows.map((row) => (
+                          <p key={`preview-${row.code}`}>
+                            {row.code.toUpperCase()}: +{row.openOffset} → +{row.dueOffset} мин ({row.duration} мин)
+                            {row.openAt && row.dueAt ? ` | ${row.openAt} - ${row.dueAt}` : ""}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
 
-                  <div className="flex justify-end">
-                    <Button
-                      type="submit"
-                      form="checkpoint-durations-form"
-                      disabled={saveDurationsMutation.isPending || checkpointsQuery.isLoading}
-                    >
-                      {saveDurationsMutation.isPending
-                        ? t("common.loading")
-                        : t("admin.settings.durationSave")}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                    {timing.t0 && (
+                      <p className="text-xs text-amber-600">
+                        {t("admin.settings.durationStartedWarning")}
+                      </p>
+                    )}
 
-          <AlertDialog open={showDurationConfirm} onOpenChange={setShowDurationConfirm}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("admin.settings.durationConfirmTitle")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("admin.settings.durationConfirmDesc")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel
-                  onClick={() => {
-                    setPendingDurationSave(null);
-                  }}
-                >
-                  {t("common.close")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    if (!pendingDurationSave) return;
-                    saveDurationsMutation.mutate(pendingDurationSave);
-                  }}
-                >
-                  {t("admin.settings.durationConfirmAction")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </TabsContent>
+                    <div className="flex justify-end">
+                      <Button
+                        type="submit"
+                        form="checkpoint-durations-form"
+                        disabled={saveDurationsMutation.isPending || checkpointsQuery.isLoading}
+                      >
+                        {saveDurationsMutation.isPending
+                          ? t("common.loading")
+                          : t("admin.settings.durationSave")}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <AlertDialog open={showDurationConfirm} onOpenChange={setShowDurationConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t("admin.settings.durationConfirmTitle")}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("admin.settings.durationConfirmDesc")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    onClick={() => {
+                      setPendingDurationSave(null);
+                    }}
+                  >
+                    {t("common.close")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      if (!pendingDurationSave) return;
+                      saveDurationsMutation.mutate(pendingDurationSave);
+                    }}
+                  >
+                    {t("admin.settings.durationConfirmAction")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </TabsContent>
+
+          <TabsContent value="features" className="space-y-5">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">{t("admin.settings.featuresTitle")}</CardTitle>
+                <CardDescription>{t("admin.settings.featuresDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form
+                    id="rankings-form"
+                    onSubmit={(event) => {
+                      void form.handleSubmit(onSubmit)(event);
+                    }}
+                    className="space-y-5"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="rankings_enabled"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-3 rounded-lg border p-3">
+                          <input
+                            id="rankings-enabled"
+                            type="checkbox"
+                            className="size-4 cursor-pointer accent-primary"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            disabled={saveMutation.isPending}
+                          />
+                          <label
+                            htmlFor="rankings-enabled"
+                            className="cursor-pointer space-y-0.5 text-sm"
+                          >
+                            <div className="font-medium">{t("admin.settings.rankingsEnabled")}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t("admin.settings.rankingsEnabledDesc")}
+                            </div>
+                          </label>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center justify-between">
+              <Button type="submit" form="rankings-form" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? t("common.loading") : t("admin.settings.save")}
+              </Button>
+              {lastSaved && (
+                <span className="text-xs text-muted-foreground">
+                  {t("common.saved")} {lastSaved}
+                </span>
+              )}
+            </div>
+            </TabsContent>
 
         <TabsContent value="cp0-topics">
           <Cp0TopicsSettingsSection />

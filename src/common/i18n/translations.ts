@@ -508,6 +508,7 @@ export const translations = {
     "admin.nav.teams": "Команды",
     "admin.nav.staff": "Стафф",
     "admin.nav.checkpoints": "Чекпоинты",
+    "admin.nav.ranking": "Рейтинг",
     "admin.nav.settings": "Настройки",
     "admin.teams.pageTitle": "Команды",
     "admin.teams.title": "Команды хакатона",
@@ -632,6 +633,14 @@ export const translations = {
     "admin.checkpoints.reject.reason.cp3.incomplete": "Неполная сдача",
     "admin.checkpoints.reject.reason.cp3.other": "Другое",
     "admin.settings.pageTitle": "Настройки хакатона",
+    "admin.settings.pageDesc":
+      "Управляйте временем хакатона, длительностями этапов, запуском рейтинга, темами CP0, причинами отклонения и критериями жюри.",
+    "admin.settings.tabs.time": "Время этапов",
+    "admin.settings.tabs.durations": "Длительности",
+    "admin.settings.tabs.features": "Фичи",
+    "admin.settings.tabs.cp0": "Темы проектов (CP0)",
+    "admin.settings.tabs.rejections": "Шаблоны отклонения",
+    "admin.settings.tabs.jury": "Критерии жюри",
     "admin.settings.title": "Управление временем хакатона",
     "admin.settings.desc":
       "Задайте время старта и демо-режим для тестирования.",
@@ -644,6 +653,12 @@ export const translations = {
     "admin.settings.demoMode": "Демо-режим",
     "admin.settings.demoModeDesc": "Виртуальное время = реальное + смещение",
     "admin.settings.demoOffset": "Смещение (минут)",
+    "admin.settings.rankingsEnabled": "Включить страницу рейтинга",
+    "admin.settings.rankingsEnabledDesc":
+      "После включения страница рейтинга станет доступна admin и super-admin.",
+    "admin.settings.featuresTitle": "Управление фичами",
+    "admin.settings.featuresDesc":
+      "Включайте и отключайте отдельные фичи приложения.",
     "admin.settings.durationTitle": "Длительность чекпоинтов",
     "admin.settings.durationDesc":
       "Задайте длительность каждого этапа. Окна открытия и дедлайна будут рассчитаны автоматически по порядку CP0 -> CP3.",
@@ -683,6 +698,23 @@ export const translations = {
     "admin.settings.superAdminOnly": "Только суперадмин.",
     "admin.settings.demoBanner":
       "⚠ Демо-режим активен — виртуальное время: {time}. Реальные участники видят сдвинутые дедлайны.",
+    "admin.ranking.pageTitle": "Рейтинг команд",
+    "admin.ranking.title": "Рейтинг команд",
+    "admin.ranking.desc":
+      "Команды отсортированы по сумме баллов жюри (по убыванию).",
+    "admin.ranking.tableTitle": "Итоговая таблица",
+    "admin.ranking.empty":
+      "Нет команд, прошедших CP3 и получивших оценки жюри.",
+    "admin.ranking.notLaunchedTitle": "Рейтинг пока не запущен",
+    "admin.ranking.notLaunchedDesc":
+      "Включите страницу рейтинга в настройках, чтобы сделать ее доступной для админов.",
+    "admin.ranking.goToSettings": "Перейти в настройки",
+    "admin.ranking.columns.rank": "Место",
+    "admin.ranking.columns.team": "Команда",
+    "admin.ranking.columns.captain": "Капитан",
+    "admin.ranking.columns.scoreSum": "Сумма баллов",
+    "admin.ranking.columns.assessments": "Оценок жюри",
+    "admin.ranking.exportCsv": "Скачать CSV",
     "admin.staff.pageTitle": "Управление стаффом",
     "admin.staff.roles.admin": "Администратор",
     "admin.staff.roles.jury": "Жюри",

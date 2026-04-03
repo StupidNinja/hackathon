@@ -14,6 +14,7 @@ export type HackathonSettingsRow = {
   t0: string | null; // ISO timestamptz, null = not started
   demo_mode: boolean;
   demo_offset_minutes: number;
+  rankings_enabled: boolean;
   updated_at: string;
 };
 
@@ -109,7 +110,10 @@ export async function getHackathonSettings(): Promise<HackathonSettingsRow> {
 
 export async function updateHackathonSettings(
   patch: Partial<
-    Pick<HackathonSettingsRow, "t0" | "demo_mode" | "demo_offset_minutes">
+    Pick<
+      HackathonSettingsRow,
+      "t0" | "demo_mode" | "demo_offset_minutes" | "rankings_enabled"
+    >
   >,
 ): Promise<HackathonSettingsRow> {
   // Supabase client response types are untyped in this project setup.
