@@ -256,8 +256,8 @@ export function HomePublicView() {
           </nav>
           <div className="hidden items-center gap-2 sm:inline-flex">
             <span className="relative inline-flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16a34a] opacity-60" />
-              <span className="relative inline-flex size-2 rounded-full bg-[#22c55e]" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#dc2626] opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-[#ef4444]" />
             </span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]/70">
               {t("home.registrationOpen")}

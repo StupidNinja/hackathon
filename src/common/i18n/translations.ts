@@ -75,7 +75,7 @@ export const translations = {
     "instructions.steps.rules.description":
       "Перед финальной сдачей проверьте критерии оценки, требования к проекту и ограничения из положения.",
     "instructions.steps.rules.action": "Открыть положение",
-    "home.registrationOpen": "Регистрация открыта",
+    "home.registrationOpen": "Регистрация закрыта",
     "home.hero.titleLead": "AITK",
     "home.hero.titleAccent": "HACKATHON",
     "home.hero.description":

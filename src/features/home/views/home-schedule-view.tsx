@@ -235,6 +235,7 @@ function LiveNow({ label, title, range }: { label: string; title: string; range:
 export function HomeScheduleView() {
   const { t } = useI18n();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [isAutoDaySelectionEnabled, setIsAutoDaySelectionEnabled] = useState(true);
   const [now, setNow] = useState(() => new Date());
 
   usePageTitle(t("schedule.pageTitle"));
@@ -249,15 +250,22 @@ export function HomeScheduleView() {
     };
   }, []);
 
-  const activeDay = schedule[selectedDayIndex];
   const currentIsoDate = toIsoDateString(now);
 
-  useEffect(() => {
-    const currentDayIndex = schedule.findIndex((day) => day.date === currentIsoDate);
-    if (currentDayIndex >= 0 && currentDayIndex !== selectedDayIndex) {
-      setSelectedDayIndex(currentDayIndex);
-    }
-  }, [currentIsoDate, selectedDayIndex]);
+  const autoDayIndex = useMemo(
+    () => schedule.findIndex((day) => day.date === currentIsoDate),
+    [currentIsoDate],
+  );
+
+  const activeDayIndex =
+    isAutoDaySelectionEnabled && autoDayIndex >= 0 ? autoDayIndex : selectedDayIndex;
+
+  const activeDay = schedule[activeDayIndex];
+
+  const handleDaySelect = (index: number) => {
+    setSelectedDayIndex(index);
+    setIsAutoDaySelectionEnabled(false);
+  };
 
   const liveEventIndex = useMemo(() => {
     return activeDay.events.findIndex((_, index) => {
@@ -299,8 +307,8 @@ export function HomeScheduleView() {
           </nav>
           <div className="hidden items-center gap-2 sm:inline-flex">
             <span className="relative inline-flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16a34a] opacity-60" />
-              <span className="relative inline-flex size-2 rounded-full bg-[#22c55e]" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#dc2626] opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-[#ef4444]" />
             </span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#5c5b5b]/70">
               {t("home.registrationOpen")}
@@ -325,13 +333,13 @@ export function HomeScheduleView() {
           <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="inline-flex w-full max-w-full items-center gap-2 overflow-x-auto rounded-full bg-[#ece7f4] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
               {schedule.map((day, index) => {
-                const isActive = selectedDayIndex === index;
+                const isActive = activeDayIndex === index;
 
                 return (
                   <button
                     key={day.date}
                     type="button"
-                    onClick={() => setSelectedDayIndex(index)}
+                    onClick={() => handleDaySelect(index)}
                     className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-all [font-family:'Plus_Jakarta_Sans',sans-serif] ${
                       isActive
                         ? "bg-[#4af8e3]/25 text-[#00675d]"
