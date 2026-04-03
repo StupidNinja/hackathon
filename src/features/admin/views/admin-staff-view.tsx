@@ -47,6 +47,7 @@ import { useI18n } from "@/common/i18n/use-i18n";
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   dateStyle: "short",
   timeStyle: "short",
+  timeZone: "Asia/Almaty",
 });
 
 function formatDate(value: string): string {

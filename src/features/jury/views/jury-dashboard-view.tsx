@@ -315,7 +315,7 @@ function JurySelectedTeamPanel({
               {assessment && (
                 <div className="mt-1 text-xs text-muted-foreground">
                   Последнее сохранение:{" "}
-                  {new Date(assessment.updated_at).toLocaleString("ru-RU")}
+                  {new Date(assessment.updated_at).toLocaleString("ru-RU", { timeZone: "Asia/Almaty" })}
                 </div>
               )}
             </div>

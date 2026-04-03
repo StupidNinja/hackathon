@@ -49,6 +49,7 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   month: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Asia/Almaty",
 });
 
 type FilterCategory = "all" | "not_submitted" | "under_review" | "advanced" | "rejected";

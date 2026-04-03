@@ -63,6 +63,7 @@ function formatDate(value: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Almaty",
   });
 }
 
@@ -409,7 +410,7 @@ export function AdminTeamDetailsView() {
                           {entry.jury?.first_name ?? "Жюри"} {entry.jury?.last_name ?? ""}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Обновлено {new Date(entry.assessment.updated_at).toLocaleString("ru-RU")}
+                          Обновлено {new Date(entry.assessment.updated_at).toLocaleString("ru-RU", { timeZone: "Asia/Almaty" })}
                         </div>
                       </div>
                       <Badge variant="secondary">

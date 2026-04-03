@@ -657,10 +657,12 @@ export const translations = {
     "admin.settings.durationPreviewTitle": "Итоговое расписание",
     "admin.settings.durationSave": "Сохранить длительности",
     "admin.settings.durationSaveSuccess": "Длительности чекпоинтов сохранены.",
-    "admin.settings.durationInvalid": "Для {{checkpoint}} длительность должна быть больше 0 минут.",
+    "admin.settings.durationInvalid":
+      "Для {{checkpoint}} длительность должна быть больше 0 минут.",
     "admin.settings.durationStartedWarning":
       "Хакатон уже запущен. Изменение длительностей сразу повлияет на окна отправки команд.",
-    "admin.settings.durationConfirmTitle": "Применить изменения во время активного хакатона?",
+    "admin.settings.durationConfirmTitle":
+      "Применить изменения во время активного хакатона?",
     "admin.settings.durationConfirmDesc":
       "Новые длительности будут применены немедленно и могут изменить доступность текущих чекпоинтов для участников.",
     "admin.settings.durationConfirmAction": "Подтвердить и сохранить",
