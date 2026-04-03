@@ -446,6 +446,7 @@ export const translations = {
     "hackathon.form.disqualified": "Команда выбыла.",
     "hackathon.form.notOpenYet": "Этот чекпоинт откроется в {{time}}.",
     "hackathon.form.onlyCurrentOpen": "Сейчас открыт только {{title}}.",
+    "hackathon.form.previousRequired": "Сначала нужно сдать {{title}}.",
     "settings.profile.pageTitle": "Профиль",
     "settings.profile.loading": "Загрузка профиля...",
     "settings.profile.error": "Не удалось загрузить данные профиля.",

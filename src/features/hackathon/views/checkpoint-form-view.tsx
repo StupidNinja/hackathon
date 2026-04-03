@@ -11,6 +11,7 @@ import {
   getCp0Topics,
   getOnboardingSnapshot,
   getSubmission,
+  getSubmissionsForTeam,
   saveCheckpointDraft,
   submitCheckpoint,
 } from "@/common/api/supabase";
@@ -464,11 +465,15 @@ export function CheckpointFormView() {
   const isLocked = cpTiming?.isLocked ?? false;
   const isCurrentCheckpointOpen = cpTiming?.isOpen ?? false;
   const teamDisqualified = snapshotQuery.data?.team?.status === "disqualified";
-  const readOnly = !isCurrentCheckpointOpen || !isCaptain || teamDisqualified;
 
   const submissionQuery = useQuery({
     queryKey: ["submission", teamId, code],
     queryFn: () => getSubmission(teamId!, code),
+    enabled: Boolean(teamId) && isValidCode,
+  });
+  const submissionsQuery = useQuery({
+    queryKey: ["submissions", teamId],
+    queryFn: () => getSubmissionsForTeam(teamId!),
     enabled: Boolean(teamId) && isValidCode,
   });
   const cp0TopicsQuery = useQuery({
@@ -561,6 +566,7 @@ export function CheckpointFormView() {
     timing.isLoading ||
     snapshotQuery.isLoading ||
     submissionQuery.isLoading ||
+    submissionsQuery.isLoading ||
     cp0TopicsQuery.isLoading;
 
   if (isLoading) return <LoadingScreen message={t("hackathon.loading")} />;
@@ -568,12 +574,34 @@ export function CheckpointFormView() {
     !isValidCode ||
     timing.isError ||
     snapshotQuery.isError ||
+    submissionsQuery.isError ||
     cp0TopicsQuery.isError
   ) {
     return <ErrorScreen message={t("hackathon.error")} />;
   }
 
   const submission = submissionQuery.data;
+  const submissions = submissionsQuery.data ?? [];
+  const checkpointIndex = timing.checkpoints.findIndex((cp) => cp.code === code);
+  const previousCheckpointCode =
+    checkpointIndex > 0 ? timing.checkpoints[checkpointIndex - 1]?.code ?? null : null;
+  const previousCheckpoint = previousCheckpointCode
+    ? timing.checkpoints.find((cp) => cp.code === previousCheckpointCode)
+    : null;
+  const previousSubmission = previousCheckpointCode
+    ? submissions.find((item) => item.checkpoint_code === previousCheckpointCode)
+    : null;
+  const hasPreviousSubmitted =
+    !previousCheckpointCode || previousSubmission?.status === "submitted";
+  const hasLegacyCp1Access =
+    code === "cp1" && submission?.status === "submitted";
+  const isSequenceUnlocked = hasPreviousSubmitted || hasLegacyCp1Access;
+
+  const readOnly =
+    !isCurrentCheckpointOpen ||
+    !isSequenceUnlocked ||
+    !isCaptain ||
+    teamDisqualified;
   const isSubmitted = submission?.status === "submitted";
   const isWorking = draftMutation.isPending || submitMutation.isPending;
 
@@ -714,6 +742,17 @@ export function CheckpointFormView() {
               {t("hackathon.form.deadlinePassed")}
             </div>
           )}
+          {!isUpcoming &&
+            !isLocked &&
+            isCurrentCheckpointOpen &&
+            !isSequenceUnlocked &&
+            previousCheckpoint && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                {t("hackathon.form.previousRequired", {
+                  title: previousCheckpoint.title,
+                })}
+              </div>
+            )}
           {!isCaptain && (
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-900/50 dark:bg-yellow-950/30 dark:text-yellow-200">
               {t("hackathon.form.notCaptain")}

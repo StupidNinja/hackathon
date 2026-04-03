@@ -229,15 +229,11 @@ export function HackathonView() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y">
-            {timing.checkpoints.map((checkpoint) => {
+            {timing.checkpoints.map((checkpoint, index) => {
               const submission = submissionMap.get(checkpoint.code) ?? null;
               const decision = decisionMap.get(checkpoint.code) ?? null;
               const previousCheckpointCode =
-                timing.checkpoints.findIndex((cp) => cp.code === checkpoint.code) > 0
-                  ? timing.checkpoints[
-                      timing.checkpoints.findIndex((cp) => cp.code === checkpoint.code) - 1
-                    ]?.code
-                  : null;
+                index > 0 ? timing.checkpoints[index - 1]?.code : null;
               const previousSubmission = previousCheckpointCode
                 ? submissionMap.get(previousCheckpointCode)
                 : null;
