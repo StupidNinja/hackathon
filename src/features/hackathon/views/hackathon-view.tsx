@@ -232,16 +232,33 @@ export function HackathonView() {
             {timing.checkpoints.map((checkpoint) => {
               const submission = submissionMap.get(checkpoint.code) ?? null;
               const decision = decisionMap.get(checkpoint.code) ?? null;
+              const previousCheckpointCode =
+                timing.checkpoints.findIndex((cp) => cp.code === checkpoint.code) > 0
+                  ? timing.checkpoints[
+                      timing.checkpoints.findIndex((cp) => cp.code === checkpoint.code) - 1
+                    ]?.code
+                  : null;
+              const previousSubmission = previousCheckpointCode
+                ? submissionMap.get(previousCheckpointCode)
+                : null;
+              const hasPreviousSubmitted =
+                !previousCheckpointCode ||
+                previousSubmission?.status === "submitted";
+              const hasLegacyCp1Access =
+                checkpoint.code === "cp1" && submission?.status === "submitted";
+              const isSequenceUnlocked = hasPreviousSubmitted || hasLegacyCp1Access;
+              const isEffectiveOpen = checkpoint.isOpen && isSequenceUnlocked;
               const status = getCpStatus(
                 checkpoint.isUpcoming,
-                checkpoint.isOpen,
+                isEffectiveOpen,
                 checkpoint.isLocked,
                 submission,
                 decision,
                 teamDisqualified,
               );
 
-              const canOpen = !teamDisqualified && status !== "upcoming";
+              const canOpen =
+                !teamDisqualified && status !== "upcoming" && status !== "locked";
 
               return (
                 <div
