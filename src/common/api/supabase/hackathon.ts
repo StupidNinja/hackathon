@@ -26,7 +26,10 @@ export type CheckpointRow = {
 };
 
 export type UpdateCheckpointInput = Partial<
-  Pick<CheckpointRow, "title" | "due_offset_minutes" | "open_offset_minutes" | "is_active">
+  Pick<
+    CheckpointRow,
+    "title" | "due_offset_minutes" | "open_offset_minutes" | "is_active"
+  >
 >;
 
 // Strongly-typed payload shapes per checkpoint
@@ -292,11 +295,26 @@ export async function getSubmissionsForTeamAdmin(
 export async function getTeamCheckpointStatuses(
   cpCode: CheckpointCode,
 ): Promise<TeamCheckpointStatusRow[]> {
-  const [teams, submissions, decisions] = await Promise.all([
-    getTeamsWithCaptains(),
-    getSubmissionsForCheckpoint(cpCode),
-    getDecisionsForCheckpoint(cpCode),
-  ]);
+  const previousCheckpointByCode: Record<
+    CheckpointCode,
+    CheckpointCode | null
+  > = {
+    cp0: null,
+    cp1: "cp0",
+    cp2: "cp1",
+    cp3: "cp2",
+  };
+  const previousCheckpointCode = previousCheckpointByCode[cpCode];
+
+  const [teams, submissions, decisions, previousSubmissions] =
+    await Promise.all([
+      getTeamsWithCaptains(),
+      getSubmissionsForCheckpoint(cpCode),
+      getDecisionsForCheckpoint(cpCode),
+      previousCheckpointCode
+        ? getSubmissionsForCheckpoint(previousCheckpointCode)
+        : Promise.resolve([] as SubmissionRow[]),
+    ]);
 
   const submissionMap = new Map<string, SubmissionRow>(
     submissions.map((s) => [s.team_id, s]),
@@ -304,15 +322,21 @@ export async function getTeamCheckpointStatuses(
   const decisionMap = new Map<string, CheckpointDecisionRow>(
     decisions.map((d) => [d.team_id, d]),
   );
+  const previousSubmissionMap = new Map<string, SubmissionRow>(
+    previousSubmissions.map((s) => [s.team_id, s]),
+  );
 
   const visibleTeams = teams.filter((team) => {
-    if (team.status !== "disqualified") {
+    if (team.status === "disqualified") {
+      return false;
+    }
+
+    if (!previousCheckpointCode) {
       return true;
     }
 
-    const currentDecision = decisionMap.get(team.id);
-    // Keep rejected teams visible only on the checkpoint where rejection happened.
-    return currentDecision?.decision === "rejected";
+    const previousSubmission = previousSubmissionMap.get(team.id);
+    return previousSubmission?.status === "submitted";
   });
 
   return visibleTeams.map((team) => ({
