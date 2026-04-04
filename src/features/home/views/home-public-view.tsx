@@ -15,6 +15,7 @@ import kazNaruLogo from "@/common/assets/partners/KazNARU.jpeg";
 import qStudyLogo from "@/common/assets/partners/Q-study.png";
 import qyshLogo from "@/common/assets/partners/Qazaq Youth Science Hub-2.png";
 import satbayevLogo from "@/common/assets/partners/Satabayev-University-logo.png";
+import turanLogo from "@/common/assets/partners/turan.png";
 
 type OrganizerCard = {
   logoUrl: string;
@@ -69,6 +70,12 @@ const partnerLogos: PartnerLogo[] = [
     nameKey: "home.partners.iitu.name",
     logoClassName: "h-16 w-auto",
     imageClassName: "invert",
+  },
+  {
+    src: turanLogo,
+    altKey: "home.partners.turan.alt",
+    nameKey: "home.partners.turan.name",
+    logoClassName: "h-16 w-auto",
   },
   {
     src: almatyHubLogo,

@@ -112,6 +112,8 @@ export const translations = {
     "home.partners.ietu.name": "IETU",
     "home.partners.iitu.alt": "Логотип International IT University",
     "home.partners.iitu.name": "International IT University",
+    "home.partners.turan.alt": "Логотип Turan University",
+    "home.partners.turan.name": "Turan University",
     "home.partners.kaznaru.alt": "Логотип KazNARU",
     "home.partners.kaznaru.name": "KazNARU",
     "home.partners.qstudy.alt": "Логотип Q-Study",
