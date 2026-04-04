@@ -49,7 +49,7 @@ export function AdminRankingView() {
         row.captain_name,
         row.captain_email ?? "",
         row.total_score_sum,
-        row.assessments_count,
+        row.unique_jury_count,
       ]),
     );
 
@@ -69,6 +69,12 @@ export function AdminRankingView() {
     queryKey: ["admin-ranking"],
     queryFn: getAdminTeamRanking,
     enabled: settingsQuery.data?.rankings_enabled === true,
+    // Keep leaderboard fresh while jury scores are coming in.
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   const isLoading = settingsQuery.isLoading || rankingQuery.isLoading;
@@ -195,7 +201,7 @@ export function AdminRankingView() {
                           {row.total_score_sum}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {row.assessments_count}
+                          {row.unique_jury_count}
                         </TableCell>
                       </TableRow>
                     ))}

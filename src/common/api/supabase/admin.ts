@@ -125,6 +125,66 @@ type RawAssessmentScoreRow = {
   score: number;
 };
 
+type RawAssessmentScoreWithIdRow = RawAssessmentScoreRow & {
+  id: string;
+};
+
+const POSTGREST_PAGE_SIZE = 1000;
+
+async function fetchAllJuryAssessments(): Promise<RawJuryAssessmentRow[]> {
+  const rows: RawJuryAssessmentRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + POSTGREST_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("jury_assessments")
+      .select("id,team_id,jury_id")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const page = (data ?? []) as RawJuryAssessmentRow[];
+    rows.push(...page);
+
+    if (page.length < POSTGREST_PAGE_SIZE) {
+      break;
+    }
+
+    from += POSTGREST_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+async function fetchAllJuryAssessmentScores(): Promise<RawAssessmentScoreRow[]> {
+  const rows: RawAssessmentScoreRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + POSTGREST_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("jury_assessment_scores")
+      .select("id,assessment_id,score")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) throw error;
+
+    const page = (data ?? []) as RawAssessmentScoreWithIdRow[];
+    rows.push(...page.map(({ assessment_id, score }) => ({ assessment_id, score })));
+
+    if (page.length < POSTGREST_PAGE_SIZE) {
+      break;
+    }
+
+    from += POSTGREST_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 function resolveSchoolName(captain: RawCaptainProfile): string | null {
   const school = captain.schools;
   if (!school) return captain.custom_school_name;
@@ -247,15 +307,12 @@ export async function getAdminTeamRanking(): Promise<AdminTeamRankingRow[]> {
         .select("team_id")
         .eq("checkpoint_code", "cp3")
         .eq("decision", "advanced"),
-      supabase.from("jury_assessments").select("id,team_id,jury_id"),
-      supabase.from("jury_assessment_scores").select("assessment_id,score"),
+      fetchAllJuryAssessments(),
+      fetchAllJuryAssessmentScores(),
     ]);
 
   if (cp3SubmittedResult.error) throw cp3SubmittedResult.error;
   if (cp3AdvancedResult.error) throw cp3AdvancedResult.error;
-  if (assessmentsResult.error) throw assessmentsResult.error;
-  if (scoresResult.error) throw scoresResult.error;
-
   const cp3SubmittedSet = new Set(
     ((cp3SubmittedResult.data ?? []) as RawTeamIdRow[]).map((row) => row.team_id),
   );
@@ -263,8 +320,8 @@ export async function getAdminTeamRanking(): Promise<AdminTeamRankingRow[]> {
     ((cp3AdvancedResult.data ?? []) as RawTeamIdRow[]).map((row) => row.team_id),
   );
 
-  const assessments = (assessmentsResult.data ?? []) as RawJuryAssessmentRow[];
-  const scores = (scoresResult.data ?? []) as RawAssessmentScoreRow[];
+  const assessments = assessmentsResult;
+  const scores = scoresResult;
 
   const assessmentTotalById = new Map<string, number>();
   for (const score of scores) {
